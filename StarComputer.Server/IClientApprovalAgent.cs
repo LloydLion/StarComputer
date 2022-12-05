@@ -2,6 +2,6 @@
 {
 	internal interface IClientApprovalAgent
 	{
-		public Task<bool> ApproveClientAsync(ClientApprovalInformation clientInformation);
+		public Task<ClientApprovalResult?> ApproveClientAsync(ClientConnectionInformation clientInformation);
 	}
 }

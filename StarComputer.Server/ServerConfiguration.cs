@@ -1,5 +1,6 @@
 ﻿using StarComputer.Shared;
 using System.Net;
+using System.Reflection;
 
 namespace StarComputer.Server
 {
@@ -18,6 +19,8 @@ namespace StarComputer.Server
 		public IPAddress Interface { get; set; } = IPAddress.Parse("localhost");
 
 		public int MaxPendingConnectionQueue { get; set; } = 10;
+
+		public Version TargetProtocolVersion { get; set; } = Assembly.GetExecutingAssembly().GetName().Version ?? throw new NullReferenceException();
 
 		public string ServerPassword
 		{

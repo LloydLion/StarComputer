@@ -1,4 +1,4 @@
 ﻿namespace StarComputer.Shared.Interaction
 {
-	public record ConnectionResponce(ProtocolStausCode ErrorCode, string? DebugMessage, object? ResponceBody);
+	public record ConnectionResponce(ConnectionStausCode ErrorCode, string? DebugMessage, object? ResponceBody);
 }

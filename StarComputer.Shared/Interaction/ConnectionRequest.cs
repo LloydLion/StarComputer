@@ -1,4 +1,4 @@
 ﻿namespace StarComputer.Shared.Interaction
 {
-	public record ConnectionRequest(string Login, string ServerPassword);
+	public record ConnectionRequest(string Login, string ServerPassword, Version ProtocolVersion);
 }

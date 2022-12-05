@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using StarComputer.Shared;
 using StarComputer.Shared.Interaction;
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -42,64 +43,114 @@ namespace StarComputer.Server
 				var stream = client.GetStream();
 
 				stream.WriteTimeout = 100;
+				stream.ReadTimeout = 100;
 				var writer = new StreamWriter(stream);
+				var reader = new StreamReader(stream);
 
 				try
 				{
-					var responce = ProcessClient(stream);
+					var json = reader.ReadLine();
+					var request = JsonConvert.DeserializeObject<ConnectionRequest>(json ?? throw new NullReferenceException()) ?? throw new NullReferenceException();
+
+					var responce = ProcessClient(request, new(request.Login, (IPEndPoint)(stream.Socket.RemoteEndPoint ?? throw new NullReferenceException())));
 
 					writer.WriteLine(JsonConvert.SerializeObject(responce, Formatting.None));
 				}
 				catch (Exception ex)
 				{
-					writer.WriteLine(JsonConvert.SerializeObject(new ConnectionResponce(ProtocolStausCode.ProtocolError, ex.ToString(), null), Formatting.None));
+					writer.WriteLine(JsonConvert.SerializeObject(new ConnectionResponce(ConnectionStausCode.ProtocolError, ex.ToString(), null), Formatting.None));
 				}
 			}
 		}
 
-		private ConnectionResponce ProcessClient(NetworkStream clientStream)
+		private ConnectionResponce ProcessClient(ConnectionRequest request, ClientConnectionInformation clientInformation)
 		{
-			clientStream.ReadTimeout = 100;
-			var reader = new StreamReader(clientStream);
-
-			var json = reader.ReadLine();
-			var request = JsonConvert.DeserializeObject<ConnectionRequest>(json ?? throw new NullReferenceException()) ?? throw new NullReferenceException();
+			if (request.ProtocolVersion != options.TargetProtocolVersion)
+				return new ConnectionResponce(ConnectionStausCode.IncompatibleVersion, $"Target version is {options.TargetProtocolVersion}", null);
 
 			if (request.ServerPassword != options.ServerPassword)
-				return new ConnectionResponce(ProtocolStausCode.InvalidPassword, request.ServerPassword, null);
+				return new ConnectionResponce(ConnectionStausCode.InvalidPassword, request.ServerPassword, null);
 
-			if (portRent.HasFreePort())
+			if (portRent.TryRentPort(out var port))
 			{
-				var isOk = clientApprovalAgent.ApproveClientAsync(new(request.Login, (IPEndPoint)(clientStream.Socket.RemoteEndPoint ?? throw new NullReferenceException()))).Result;
+				ClientApprovalResult? approvalResult = null;
 
-				if (isOk == false)
-					return new ConnectionResponce(ProtocolStausCode.ComputerRejected, null, null);
+				try
+				{
+					approvalResult = clientApprovalAgent.ApproveClientAsync(clientInformation).Result;
 
-				return new ConnectionResponce(ProtocolStausCode.Successful, null, new SuccessfulConnectionResultBody(portRent.RentPort()));
+					if (approvalResult is null)
+						return new ConnectionResponce(ConnectionStausCode.ComputerRejected, null, null);
+				}
+				finally
+				{
+					if (approvalResult is null)
+						port.Dispose();
+				}
+
+				return new ConnectionResponce(ConnectionStausCode.Successful, null, new SuccessfulConnectionResultBody(port.Port));
 			}
-			else return new ConnectionResponce(ProtocolStausCode.NoFreePort, null, null);
+			else return new ConnectionResponce(ConnectionStausCode.NoFreePort, null, null);
 		}
 
 
 		private class PortRentManager
 		{
 			private readonly PortRange ports;
+			private readonly List<int> usedPorts;
 
 
 			public PortRentManager(PortRange ports)
 			{
+				usedPorts = new(ports.Count);
 				this.ports = ports;
 			}
 
 
-			public bool HasFreePort()
+			public bool TryRentPort(out RentedPort port)
 			{
+				foreach (var maybePort in ports)
+				{
+					if (usedPorts.Contains(maybePort))
+						continue;
+					else
+					{
+						usedPorts.Add(maybePort);
+						port = new(maybePort, new RentFinalizer(usedPorts, maybePort));
+						return true;
+					}
+				}
 
+				port = default;
+				return false;
 			}
 
-			public int RentPort()
-			{
 
+			private class RentFinalizer : IDisposable
+			{
+				private readonly List<int> usedPorts;
+				private readonly int portToDelete;
+
+
+				public RentFinalizer(List<int> usedPorts, int portToDelete)
+				{
+					this.usedPorts = usedPorts;
+					this.portToDelete = portToDelete;
+				}
+
+
+				public void Dispose()
+				{
+					usedPorts.Remove(portToDelete);
+				}
+			}
+		}
+
+		private record struct RentedPort(int Port, IDisposable RentFinalizer) : IDisposable
+		{
+			public void Dispose()
+			{
+				RentFinalizer.Dispose();
 			}
 		}
 	}
