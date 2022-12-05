@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using StarComputer.Shared;
-using StarComputer.Shared.Interaction;
+using StarComputer.Shared.Connection;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Security;
