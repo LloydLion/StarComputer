@@ -14,6 +14,8 @@ namespace StarComputer.Server
 
 		public int ConnectionPort { get; set; } = StaticInformation.ConnectionPort;
 
+		public int ClientConnectTimeout { get; set; } = StaticInformation.ClientConnectTimeout;
+
 		public PortRange OperationsPortRange { get; set; } = StaticInformation.OperationsPortRange;
 
 		public IPAddress Interface { get; set; } = IPAddress.Parse("localhost");
