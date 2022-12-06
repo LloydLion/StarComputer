@@ -2,7 +2,7 @@
 {
 	public class ProtocolMessage
 	{
-		public ProtocolMessage(string domain, object? body, IReadOnlyCollection<Attachment>? attachments, string? debugMessage)
+		public ProtocolMessage(string domain, object? body, IEnumerable<Attachment>? attachments, string? debugMessage)
 		{
 			TimeStamp = DateTime.UtcNow;
 			Domain = domain;
@@ -11,7 +11,7 @@
 			DebugMessage = debugMessage;
 		}
 
-		public ProtocolMessage(DateTime utcSendTime, string domain, object? body, IReadOnlyCollection<Attachment>? attachments, string? debugMessage)
+		public ProtocolMessage(DateTime utcSendTime, string domain, object? body, IEnumerable<Attachment>? attachments, string? debugMessage)
 		{
 			TimeStamp = utcSendTime;
 			Domain = domain;

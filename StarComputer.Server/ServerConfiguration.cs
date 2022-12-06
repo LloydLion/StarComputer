@@ -18,7 +18,7 @@ namespace StarComputer.Server
 
 		public PortRange OperationsPortRange { get; set; } = StaticInformation.OperationsPortRange;
 
-		public IPAddress Interface { get; set; } = IPAddress.Parse("localhost");
+		public IPAddress Interface { get; set; } = IPAddress.Parse("127.0.0.1");
 
 		public int MaxPendingConnectionQueue { get; set; } = 10;
 

@@ -1,4 +1,6 @@
-﻿namespace StarComputer.Shared.Connection
+﻿using Newtonsoft.Json.Linq;
+
+namespace StarComputer.Shared.Connection
 {
-	public record ConnectionResponce(ConnectionStausCode ErrorCode, string? DebugMessage, object? ResponceBody);
+	public record ConnectionResponce(ConnectionStausCode StatusCode, string? DebugMessage, JObject? ResponceBody, string? BodyTypeName);
 }

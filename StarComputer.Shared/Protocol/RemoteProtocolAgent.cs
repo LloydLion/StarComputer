@@ -34,7 +34,7 @@ namespace StarComputer.Shared.Protocol
 		{
 			targetStream = client.GetStream();
 			reader = new StreamReader(targetStream);
-			writer = new StreamWriter(targetStream);
+			writer = new StreamWriter(targetStream) { AutoFlush = true };
 
 			readThread = new Thread(ReadThreadHandler);
 			writeThread = new Thread(WriteThreadHandler);
@@ -63,7 +63,7 @@ namespace StarComputer.Shared.Protocol
 
 			targetStream = newClient.GetStream();
 			reader = new StreamReader(targetStream);
-			writer = new StreamWriter(targetStream);
+			writer = new StreamWriter(targetStream) { AutoFlush = true };
 
 			readThread = new Thread(ReadThreadHandler);
 			writeThread = new Thread(WriteThreadHandler);
@@ -75,6 +75,7 @@ namespace StarComputer.Shared.Protocol
 		{
 			var tcs = new TaskCompletionSource<SendStatusCode>();
 			tasks.Enqueue(new(message, tcs));
+			onTaskEvent.Set();
 			return tcs.Task;
 		}
 
@@ -184,7 +185,7 @@ namespace StarComputer.Shared.Protocol
 								message.TimeStamp.Ticks,
 								message.Domain,
 								message.Body?.GetType().AssemblyQualifiedName,
-								message.Body is null ? null : JObject.FromObject(message.Body),
+								message.Body is null ? null : JToken.FromObject(message.Body),
 								message.DebugMessage,
 								attachmentLengths
 							));
@@ -242,7 +243,7 @@ namespace StarComputer.Shared.Protocol
 			[JsonProperty(PropertyName = "TimeStamp")] long TimeStampUtcTicks,
 			[JsonProperty(PropertyName = "Domain")] string ProviderDomain,
 			[JsonProperty(PropertyName = "BodyType")] string? BodyTypeAssemblyQualifiedName,
-			[JsonProperty(PropertyName = "Body")] JObject? Body,
+			[JsonProperty(PropertyName = "Body")] JToken? Body,
 			[JsonProperty(PropertyName = "Debug")] string? DebugMessage,
 			[JsonProperty(PropertyName = "AttachmentTable")] IReadOnlyDictionary<string, long>? AttachmentLengths
 		);

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StarComputer.Shared;
 using StarComputer.Shared.Connection;
 using StarComputer.Shared.Protocol;
@@ -33,6 +34,8 @@ namespace StarComputer.Server
 
 		public Server(IOptions<ServerConfiguration> options, ILogger<Server> logger, IClientApprovalAgent clientApprovalAgent, IMessageHandler messageHandler)
 		{
+			options.Value.Validate();
+
 			this.options = options.Value;
 			connectionListener = new TcpListener(options.Value.Interface, options.Value.ConnectionPort);
 			this.logger = logger;
@@ -67,9 +70,10 @@ namespace StarComputer.Server
 
 						stream.WriteTimeout = 100;
 						stream.ReadTimeout = 100;
-						var writer = new StreamWriter(stream);
+						var writer = new StreamWriter(stream) { AutoFlush = true };
 						var reader = new StreamReader(stream);
 
+						Thread.Sleep(250);
 
 						try
 						{
@@ -82,10 +86,8 @@ namespace StarComputer.Server
 						}
 						catch (Exception ex)
 						{
-							writer.WriteLine(JsonConvert.SerializeObject(new ConnectionResponce(ConnectionStausCode.ProtocolError, ex.ToString(), null), Formatting.None));
+							writer.WriteLine(JsonConvert.SerializeObject(new ConnectionResponce(ConnectionStausCode.ProtocolError, ex.ToString(), null, null), Formatting.None));
 						}
-
-						stream.Flush();
 					}
 					catch (Exception ex)
 					{
@@ -122,10 +124,10 @@ namespace StarComputer.Server
 		private ConnectionResponce ProcessClientConnection(ConnectionRequest request, ClientConnectionInformation clientInformation)
 		{
 			if (request.ProtocolVersion != options.TargetProtocolVersion)
-				return new ConnectionResponce(ConnectionStausCode.IncompatibleVersion, $"Target version is {options.TargetProtocolVersion}", null);
+				return new ConnectionResponce(ConnectionStausCode.IncompatibleVersion, $"Target version is {options.TargetProtocolVersion}", null, null);
 
 			if (request.ServerPassword != options.ServerPassword)
-				return new ConnectionResponce(ConnectionStausCode.InvalidPassword, request.ServerPassword, null);
+				return new ConnectionResponce(ConnectionStausCode.InvalidPassword, request.ServerPassword, null, null);
 
 			if (portRent.TryRentPort(out var port))
 			{
@@ -136,7 +138,7 @@ namespace StarComputer.Server
 					approvalResult = clientApprovalAgent.ApproveClientAsync(clientInformation).Result;
 
 					if (approvalResult is null)
-						return new ConnectionResponce(ConnectionStausCode.ComputerRejected, null, null);
+						return new ConnectionResponce(ConnectionStausCode.ComputerRejected, null, null, null);
 				}
 				finally
 				{
@@ -145,9 +147,10 @@ namespace StarComputer.Server
 				}
 
 				ProcessClientJoin(port);
-				return new ConnectionResponce(ConnectionStausCode.Successful, null, new SuccessfulConnectionResultBody(port.Port));
+				var body = new SuccessfulConnectionResultBody(port.Port);
+				return new ConnectionResponce(ConnectionStausCode.Successful, null, JObject.FromObject(body), body.GetType().AssemblyQualifiedName);
 			}
-			else return new ConnectionResponce(ConnectionStausCode.NoFreePort, null, null);
+			else return new ConnectionResponce(ConnectionStausCode.NoFreePort, null, null, null);
 		}
 
 		private void ProcessClientJoin(RentedPort port)
@@ -169,7 +172,9 @@ namespace StarComputer.Server
 
 				EnqueueTask(() =>
 				{
-					agents.Add(new RemoteProtocolAgent(client, agentWorker, messageHandler), port);
+					var remote = new RemoteProtocolAgent(client, agentWorker, messageHandler);
+					remote.Start();
+					agents.Add(remote, port);
 				});
 			});
 
@@ -189,9 +194,12 @@ namespace StarComputer.Server
 
 			listener.AcceptTcpClientAsync(cts.Token).AsTask().ContinueWith(clientTask =>
 			{
-				var client = clientTask.Result;
-				listener.Stop();
-				agent.Reconnect(client);
+				if (clientTask.IsCompletedSuccessfully)
+				{
+					var client = clientTask.Result;
+					listener.Stop();
+					agent.Reconnect(client);
+				}
 			});
 
 		}
