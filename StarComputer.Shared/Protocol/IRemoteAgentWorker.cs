@@ -7,5 +7,7 @@
 		public void HandleDisconnect(RemoteProtocolAgent agent);
 
 		public void ScheduleReconnect(RemoteProtocolAgent agent);
+
+		public void DispatchMessage(RemoteProtocolAgent agent, ProtocolMessage message);
 	}
 }

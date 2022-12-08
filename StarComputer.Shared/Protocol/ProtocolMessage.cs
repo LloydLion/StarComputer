@@ -32,6 +32,6 @@
 		public string? DebugMessage { get; }
 
 
-		public record Attachment(string Name, CopyToDelegate CopyDelegate, long Length);
+		public record Attachment(string Name, CopyToDelegate CopyDelegate, int Length);
 	}
 }

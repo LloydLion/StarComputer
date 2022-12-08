@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using StarComputer.Shared;
 using StarComputer.Shared.Connection;
 using StarComputer.Shared.Protocol;
+using StarComputer.Shared.Utils;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
@@ -28,8 +29,7 @@ namespace StarComputer.Server
 		private readonly IMessageHandler messageHandler;
 		private readonly AgentWorker agentWorker;
 
-		private readonly ConcurrentQueue<Action> dispathcedTasks = new();
-		private readonly AutoResetEvent onTask = new(false);
+		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
 
 
 		public Server(IOptions<ServerConfiguration> options, ILogger<Server> logger, IClientApprovalAgent clientApprovalAgent, IMessageHandler messageHandler)
@@ -43,50 +43,52 @@ namespace StarComputer.Server
 			this.messageHandler = messageHandler;
 			portRent = new(options.Value.OperationsPortRange);
 			agentWorker = new(this);
+
+			mainThreadDispatcher = new(Thread.CurrentThread, s => s(), 1);
 		}
 
 
 		public void Listen()
 		{
-			connectionListener.Start(10);
+			connectionListener.Start(options.MaxPendingConnectionQueue);
 
 			var waitForClient = new AutoResetEvent(false);
-			var toWait = new[] { waitForClient, onTask };
-
 			Task<TcpClient> clientTask = connectionListener.AcceptTcpClientAsync().ContinueWith(s => { waitForClient.Set(); return s.Result; });
+
+			SynchronizationContext.SetSynchronizationContext(mainThreadDispatcher.CraeteSynchronizationContext(s => s));
 
 			while (true)
 			{
-				var index = WaitHandle.WaitAny(toWait);
+				var index = mainThreadDispatcher.WaitHandlers(waitForClient);
+
+				if (index == -1)
+				{
+					connectionListener.Start();
+					try { clientTask.Wait(); } catch (Exception) { }
+					return;
+				}
 
 				if (index == 0)
 				{
-					var client = clientTask.Result;
+					var rawClient = clientTask.Result;
 					clientTask = connectionListener.AcceptTcpClientAsync().ContinueWith(s => { waitForClient.Set(); return s.Result; });
 
 					try
 					{
-						var stream = client.GetStream();
-
-						stream.WriteTimeout = 100;
-						stream.ReadTimeout = 100;
-						var writer = new StreamWriter(stream) { AutoFlush = true };
-						var reader = new StreamReader(stream);
-
-						Thread.Sleep(250);
+						var client = new SocketClient(rawClient);
 
 						try
 						{
-							var json = reader.ReadLine();
-							var request = JsonConvert.DeserializeObject<ConnectionRequest>(json ?? throw new NullReferenceException()) ?? throw new NullReferenceException();
+							var request = client.ReadJson<ConnectionRequest>();
 
-							var responce = ProcessClientConnection(request, new(request.Login, (IPEndPoint)(stream.Socket.RemoteEndPoint ?? throw new NullReferenceException())));
+							var responce = ProcessClientConnection(request, new(request.Login, client.EndPoint));
 
-							writer.WriteLine(JsonConvert.SerializeObject(responce, Formatting.None));
+							client.WriteJson(responce);
 						}
 						catch (Exception ex)
 						{
-							writer.WriteLine(JsonConvert.SerializeObject(new ConnectionResponce(ConnectionStausCode.ProtocolError, ex.ToString(), null, null), Formatting.None));
+							client.WriteJson(new ConnectionResponce(ConnectionStausCode.ProtocolError, ex.ToString(), null, null));
+							throw;
 						}
 					}
 					catch (Exception ex)
@@ -94,24 +96,11 @@ namespace StarComputer.Server
 						logger.LogError(ex, "!!!");
 					}
 				}
-				else
+				else if (index == -2)
 				{
 					try
 					{
-						while (dispathcedTasks.IsEmpty == false)
-						{
-							if (dispathcedTasks.TryDequeue(out var task))
-							{
-								try
-								{
-									task();
-								}
-								catch (Exception ex)
-								{
-									logger.LogError(ex, "#!!!");
-								}
-							}
-						}
+						mainThreadDispatcher.ExecuteAllTasks();
 					}
 					catch (Exception ex)
 					{
@@ -159,23 +148,34 @@ namespace StarComputer.Server
 			listener.Start();
 
 			var cts = new CancellationTokenSource();
-			Task.Delay(options.ClientConnectTimeout).ContinueWith(_ => EnqueueTask(() =>
+			var sychRoot = new object();
+
+			Task.Delay(options.ClientConnectTimeout).ContinueWith(_ => mainThreadDispatcher.DispatchTask(() =>
 			{
-				cts.Cancel();
-				listener.Stop();
+				lock (sychRoot)
+				{
+					cts.Cancel();
+					listener.Stop();
+				}
 			}));
 
 			listener.AcceptTcpClientAsync(cts.Token).AsTask().ContinueWith(clientTask =>
 			{
-				var client = clientTask.Result;
-				listener.Stop();
-
-				EnqueueTask(() =>
+				lock (sychRoot)
 				{
-					var remote = new RemoteProtocolAgent(client, agentWorker, messageHandler);
-					remote.Start();
-					agents.Add(remote, port);
-				});
+					if (clientTask.IsCompletedSuccessfully)
+					{
+						var client = clientTask.Result;
+						listener.Stop();
+
+						mainThreadDispatcher.DispatchTask(() =>
+						{
+							var remote = new RemoteProtocolAgent(client, agentWorker);
+							remote.Start();
+							agents.Add(remote, port);
+						});
+					}
+				}
 			});
 
 		}
@@ -186,28 +186,31 @@ namespace StarComputer.Server
 			listener.Start();
 
 			var cts = new CancellationTokenSource();
-			Task.Delay(options.ClientConnectTimeout).ContinueWith(_ => EnqueueTask(() =>
+			var sychRoot = new object();
+
+			Task.Delay(options.ClientConnectTimeout).ContinueWith(_ => mainThreadDispatcher.DispatchTask(() =>
 			{
-				cts.Cancel();
-				listener.Stop();
+				lock (sychRoot)
+				{
+					cts.Cancel();
+					listener.Stop();
+				}
 			}));
 
 			listener.AcceptTcpClientAsync(cts.Token).AsTask().ContinueWith(clientTask =>
 			{
-				if (clientTask.IsCompletedSuccessfully)
+				lock (sychRoot)
 				{
-					var client = clientTask.Result;
-					listener.Stop();
-					agent.Reconnect(client);
+					if (clientTask.IsCompletedSuccessfully)
+					{
+						var client = clientTask.Result;
+						listener.Stop();
+
+						mainThreadDispatcher.DispatchTask(() => agent.Reconnect(client));
+					}
 				}
 			});
 
-		}
-
-		private void EnqueueTask(Action task)
-		{
-			dispathcedTasks.Enqueue(task);
-			onTask.Set();
 		}
 
 
@@ -282,9 +285,17 @@ namespace StarComputer.Server
 			}
 
 
+			public void DispatchMessage(RemoteProtocolAgent agent, ProtocolMessage message)
+			{
+				owner.mainThreadDispatcher.DispatchTask(() =>
+				{
+					owner.messageHandler.HandleMessageAsync(message, agent);
+				});
+			}
+
 			public void HandleDisconnect(RemoteProtocolAgent agent)
 			{
-				owner.EnqueueTask(() =>
+				owner.mainThreadDispatcher.DispatchTask(() =>
 				{
 					owner.agents[agent].Dispose();
 					owner.agents.Remove(agent);

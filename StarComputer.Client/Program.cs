@@ -18,11 +18,11 @@ var services = new ServiceCollection()
 	.AddSingleton<IMessageHandler, HelloMessageHandler>()
 	.BuildServiceProvider();
 
-Console.Write("Server ip: 127.0.0.1");
+Console.WriteLine("Server ip: 127.0.0.1");
 IPAddress address = IPAddress.Parse("127.0.0.1");//IPAddress.Parse(Console.ReadLine() ?? throw new NullReferenceException());
-Console.Write("Server port: " + StaticInformation.ConnectionPort);
+Console.WriteLine("Server port: " + StaticInformation.ConnectionPort);
 int port = StaticInformation.ConnectionPort;//int.Parse(Console.ReadLine() ?? throw new NullReferenceException());
-Console.Write("Server password: DEBUG PASSWORD");
+Console.WriteLine("Server password: DEBUG PASSWORD");
 var password = "DEBUG PASSWORD";//Console.ReadLine() ?? throw new NullReferenceException();
 Console.Write("Login: ");
 var login = Console.ReadLine() ?? throw new NullReferenceException();

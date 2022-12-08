@@ -2,6 +2,8 @@
 using Newtonsoft.Json;
 using StarComputer.Shared.Connection;
 using StarComputer.Shared.Protocol;
+using StarComputer.Shared.Utils;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 
@@ -23,17 +25,15 @@ namespace StarComputer.Client
 
 		public void Connect(IPEndPoint endPoint, string serverPassword, string login)
 		{
-			var client = new TcpClient();
-			client.Connect(endPoint);
+			var rawClient = new TcpClient();
+			rawClient.Connect(endPoint);
 
-			var stream = client.GetStream();
-			var writer = new StreamWriter(stream) { AutoFlush = true };
-			var reader = new StreamReader(stream);
+			var client = new SocketClient(rawClient);
 
-			writer.WriteLine(JsonConvert.SerializeObject(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion)));
-			while (stream.DataAvailable == false) Thread.Sleep(10);
-			var responce = JsonConvert.DeserializeObject<ConnectionResponce>(reader.ReadLine() ?? throw new NullReferenceException()) ?? throw new NullReferenceException();
-
+			client.WriteJson(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion));
+			while (client.IsDataAvailable == false) Thread.Sleep(10);
+			var responce = client.ReadJson<ConnectionResponce>();
+			
 			if (responce.DebugMessage is not null)
 				Console.WriteLine("Debug: " + responce.DebugMessage);
 
@@ -46,17 +46,16 @@ namespace StarComputer.Client
 			var port = body.ConnectionPort;
 
 			client.Close();
-			client.Dispose();
 
 			//-----------------
-
-			client = new TcpClient();
-			client.Connect(new IPEndPoint(endPoint.Address, port));
+			
+			rawClient = new TcpClient();
+			rawClient.Connect(new IPEndPoint(endPoint.Address, port));
 
 			var onSomething = new AutoResetEvent(false);
-			var agent = new Agent(onDisconnect);
+			var agent = new Agent(onSomething);
 
-			var remote = new RemoteProtocolAgent(client, agent, messageHandler);
+			var remote = new RemoteProtocolAgent(rawClient, agent);
 
 			remote.Start();
 
@@ -66,22 +65,31 @@ namespace StarComputer.Client
 			}
 			catch (Exception ex) { Console.WriteLine(ex); }
 
-		reconnect:
+		waitNew:
 			onSomething.WaitOne();
 
-			if (agent.IsReconnecting)
+			if (agent.Reason == Agent.SomethingReason.Reconnect)
 			{
-				client.Close();
-				client = new TcpClient();
-				client.Connect(new IPEndPoint(endPoint.Address, port));
+				rawClient.Close();
+				rawClient = new TcpClient();
+				rawClient.Connect(new IPEndPoint(endPoint.Address, port));
 
-				remote.Reconnect(client);
+				remote.Reconnect(rawClient);
 
-				goto reconnect;
+				goto waitNew;
+			}
+			else if (agent.Reason == Agent.SomethingReason.Disconnect)
+			{
+				Console.WriteLine("Done");
 			}
 			else
 			{
-				Console.WriteLine("Done");
+				while (agent.Messages.TryDequeue(out var el))
+				{
+					messageHandler.HandleMessageAsync(el.Item2, el.Item1);
+				}
+
+				goto waitNew;
 			}
 		}
 
@@ -99,7 +107,7 @@ namespace StarComputer.Client
 
 			public void HandleDisconnect(RemoteProtocolAgent agent)
 			{
-				IsReconnecting = false;
+				Reason = SomethingReason.Disconnect;
 				onSomething.Set();
 			}
 
@@ -110,12 +118,29 @@ namespace StarComputer.Client
 
 			public void ScheduleReconnect(RemoteProtocolAgent agent)
 			{
-				IsReconnecting = true;
+				Reason = SomethingReason.Reconnect;
+				onSomething.Set();
+			}
+
+			public void DispatchMessage(RemoteProtocolAgent agent, ProtocolMessage message)
+			{
+				Reason = SomethingReason.Message;
+				Messages.Enqueue((agent, message));
 				onSomething.Set();
 			}
 
 
-			public bool IsReconnecting { get; private set; }
+			public SomethingReason Reason { get; private set; }
+
+			public ConcurrentQueue<(RemoteProtocolAgent, ProtocolMessage)> Messages { get; } = new();
+
+
+			public enum SomethingReason
+			{
+				Disconnect,
+				Reconnect,
+				Message
+			}
 		}
 	}
 }
