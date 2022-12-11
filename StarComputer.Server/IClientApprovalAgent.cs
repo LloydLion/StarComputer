@@ -2,7 +2,7 @@
 
 namespace StarComputer.Server
 {
-	internal interface IClientApprovalAgent
+	public interface IClientApprovalAgent
 	{
 		public Task<ClientApprovalResult?> ApproveClientAsync(ClientConnectionInformation clientInformation);
 	}

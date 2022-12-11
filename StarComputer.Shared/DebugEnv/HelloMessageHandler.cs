@@ -1,13 +1,12 @@
-﻿using Newtonsoft.Json;
-using StarComputer.Shared.Protocol;
+﻿using StarComputer.Shared.Protocol;
 
 namespace StarComputer.Shared.DebugEnv
 {
 	public class HelloMessageHandler : IMessageHandler
 	{
-		public async Task<SendStatusCode> HandleMessageAsync(ProtocolMessage message, RemoteProtocolAgent agent)
+		public Task HandleMessageAsync(ProtocolMessage message, RemoteProtocolAgent agent)
 		{
-			Console.WriteLine(JsonConvert.SerializeObject(message.Body));
+			Console.WriteLine(message);
 
 			//if (message.Body is string str)
 			//{
@@ -16,7 +15,7 @@ namespace StarComputer.Shared.DebugEnv
 			//}
 			//else await agent.SendMessageAsync(message);
 
-			return SendStatusCode.Successful;
+			return Task.CompletedTask;
 		}
 	}
 }

@@ -1,7 +1,15 @@
-﻿namespace StarComputer.Server
+﻿using StarComputer.Shared.Protocol;
+
+namespace StarComputer.Server
 {
-	internal interface IServer
+	public interface IServer
 	{
 		public void Listen();
+
+		public void Close();
+
+		public IEnumerable<ServerSideClient> ListClients();
+
+		public ServerSideClient GetClientByAgent(RemoteProtocolAgent protocolAgent);
 	}
 }

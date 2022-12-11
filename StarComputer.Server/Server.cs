@@ -9,7 +9,7 @@ using System.Net.Sockets;
 
 namespace StarComputer.Server
 {
-	internal class Server : IServer
+	public class Server : IServer
 	{
 		private static readonly EventId ServerReadyID = new(10, "ServerReady");
 		private static readonly EventId WaitingNewTasksID = new(11, "WaitingNewTasks");
@@ -262,6 +262,21 @@ namespace StarComputer.Server
 
 		}
 
+		public void Close()
+		{
+			mainThreadDispatcher.Close();
+		}
+
+		public IEnumerable<ServerSideClient> ListClients()
+		{
+			foreach (var agent in agents)
+				yield return new ServerSideClient(agent.Value.ConnectionInformation, agent.Key);
+		}
+
+		public ServerSideClient GetClientByAgent(RemoteProtocolAgent protocolAgent)
+		{
+			return new(agents[protocolAgent].ConnectionInformation, protocolAgent);
+		}
 
 		private record struct ServerSideClientInformation(ClientConnectionInformation ConnectionInformation, RentedPort RentedPort);
 

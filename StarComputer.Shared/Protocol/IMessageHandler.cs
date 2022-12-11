@@ -2,6 +2,6 @@
 {
 	public interface IMessageHandler
 	{
-		public Task<SendStatusCode> HandleMessageAsync(ProtocolMessage message, RemoteProtocolAgent agent);
+		public Task HandleMessageAsync(ProtocolMessage message, RemoteProtocolAgent agent);
 	}
 }
