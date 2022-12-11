@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -7,19 +8,26 @@ namespace StarComputer.Shared.Utils
 {
 	public class SocketClient
 	{
+		private static readonly EventId ClientCreatedID = new(90, "ClientCreated");
+		private static readonly EventId ObjectWroteID = new(91, "ObjectWriten");
+		private static readonly EventId ObjectRecivedID = new(92, "ObjectRecived");
+		private static readonly EventId BinaryWroteID = new(93, "BinaryWriten");
+		private static readonly EventId BinaryRecivedID = new(94, "BinaryRecived");
+		private static readonly EventId ClientClosedDirectryID = new(95, "ClientClosedDirectry");
 		private const int BytesChunkSize = 512;
 
 
 		private readonly TcpClient client;
+		private readonly ILogger logger;
 		private readonly NetworkStream stream;
 		private readonly StreamWriter writer;
 		private readonly StreamReader reader;
 
 
-		public SocketClient(TcpClient client)
+		public SocketClient(TcpClient client, ILogger logger)
 		{
 			this.client = client;
-
+			this.logger = logger;
 			stream = client.GetStream();
 			stream.ReadTimeout = StaticInformation.ClientMessageSendTimeout;
 			stream.WriteTimeout = StaticInformation.ClientMessageSendTimeout;
@@ -27,9 +35,17 @@ namespace StarComputer.Shared.Utils
 			writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true, NewLine = "\n" };
 			reader = new StreamReader(stream, Encoding.UTF8);
 
-			ReadBytes(3); //Read utf-8 DOM bytes
+			//Read utf-8 BOM bytes
+			Span<byte> nup = stackalloc byte[3];
+			stream.Read(nup);
 
 			EndPoint = (IPEndPoint)(client.Client.RemoteEndPoint ?? throw new NullReferenceException("Remote endpoint was null"));
+
+			lock (logger)
+			{
+				using (logger.BeginScope("SocketClient {EndPoint}", EndPoint))
+					logger.Log(LogLevel.Debug, ClientCreatedID, "New socket client created, endpoint {EndPoint}", EndPoint);
+			}
 		}
 
 
@@ -39,7 +55,6 @@ namespace StarComputer.Shared.Utils
 		{ 
 			get
 			{
-
 				try
 				{
 					stream.Write(ReadOnlySpan<byte>.Empty);
@@ -59,24 +74,49 @@ namespace StarComputer.Shared.Utils
 		{
 			var json = JsonConvert.SerializeObject(value);
 
-			PrintColored(json, ConsoleColor.Green);
 			writer.WriteLine(json);
+
+			lock (logger)
+			{
+				using (logger.BeginScope("SocketClient {EndPoint}", EndPoint))
+					logger.Log(LogLevel.Trace, ObjectWroteID, "New JSON object wrote\n\t{JSON}", json);
+			}
 		}
 
 		public TObject ReadJson<TObject>() where TObject : notnull
 		{
 			var json = reader.ReadLine() ?? throw new NullReferenceException();
-			
-			PrintColored(json, ConsoleColor.Magenta);
+
+			lock (logger)
+			{
+				using (logger.BeginScope("SocketClient {EndPoint}", EndPoint))
+					logger.Log(LogLevel.Trace, ObjectRecivedID, "New JSON object recived\n\t{JSON}", json);
+			}
+
 			return JsonConvert.DeserializeObject<TObject>(json) ?? throw new NullReferenceException();
 		}
 
 		public void CopyFrom(CopyToDelegate copyTo)
 		{
 			copyTo(stream).AsTask().Wait();
+
+			lock (logger)
+			{
+				using (logger.BeginScope("SocketClient {EndPoint}", EndPoint))
+					logger.Log(LogLevel.Trace, BinaryWroteID, "Binary data wrote using CopyToDelegate, source: {Source}", copyTo.Method);
+			}
 		}
 
-		public void Close() => client.Close();
+		public void Close()
+		{
+			client.Close();
+
+			lock (logger)
+			{
+				using (logger.BeginScope("SocketClient {EndPoint}", EndPoint))
+					logger.Log(LogLevel.Trace, ClientClosedDirectryID, "Connection closed by internal command");
+			}
+		}
 
 		public ReadOnlyMemory<byte> ReadBytes(int count)
 		{
@@ -92,7 +132,11 @@ namespace StarComputer.Shared.Utils
 
 			stream.Read(span);
 
-			PrintColored($"--- Read {count} bytes ---", ConsoleColor.Magenta);
+			lock (logger)
+			{
+				using (logger.BeginScope("SocketClient {EndPoint}", EndPoint))
+					logger.Log(LogLevel.Trace, BinaryRecivedID, "Binary data recived, bytes length - {Length}", count);
+			}
 
 			return buffer.AsMemory();
 		}
@@ -110,15 +154,11 @@ namespace StarComputer.Shared.Utils
 
 			stream.Write(span);
 
-			PrintColored($"--- Wrote {bytes.Length} bytes ---", ConsoleColor.Green);
-		}
-
-		private static void PrintColored(string str, ConsoleColor color)
-		{
-			var tmp = Console.ForegroundColor;
-			Console.ForegroundColor = color;
-			Console.WriteLine(str);
-			Console.ForegroundColor = tmp;
+			lock (logger)
+			{
+				using (logger.BeginScope("SocketClient {EndPoint}", EndPoint))
+					logger.Log(LogLevel.Trace, BinaryWroteID, "Binary data wrote, bytes length - {Length}", bytes.Length);
+			}
 		}
 	}
 }

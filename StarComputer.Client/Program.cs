@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using StarComputer.Client;
 using StarComputer.Shared;
 using StarComputer.Shared.DebugEnv;
 using StarComputer.Shared.Protocol;
+using StarComputer.Shared.Utils.Logging;
 using System.Net;
 
 Thread.Sleep(2500);
@@ -14,11 +16,11 @@ var services = new ServiceCollection()
 	})
 
 	.AddSingleton<IClient, Client>()
-
 	.AddSingleton<IMessageHandler, HelloMessageHandler>()
+	.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddFancyLogging())
 	.BuildServiceProvider();
 
-Console.WriteLine("Server ip: 127.0.0.1");
+Console.WriteLine("Server IP: 127.0.0.1");
 IPAddress address = IPAddress.Parse("127.0.0.1");//IPAddress.Parse(Console.ReadLine() ?? throw new NullReferenceException());
 Console.WriteLine("Server port: " + StaticInformation.ConnectionPort);
 int port = StaticInformation.ConnectionPort;//int.Parse(Console.ReadLine() ?? throw new NullReferenceException());

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using StarComputer.Shared.Connection;
 using StarComputer.Shared.Protocol;
@@ -13,14 +14,15 @@ namespace StarComputer.Client
 	{
 		private readonly ClientConfiguration options;
 		private readonly IMessageHandler messageHandler;
+		private readonly ILogger<Client> logger;
 		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
 
 
-		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler)
+		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler, ILogger<Client> logger)
 		{
 			this.options = options.Value;
 			this.messageHandler = messageHandler;
-
+			this.logger = logger;
 			mainThreadDispatcher = new(Thread.CurrentThread, s => s());
 		}
 
@@ -30,7 +32,7 @@ namespace StarComputer.Client
 			var rawClient = new TcpClient();
 			rawClient.Connect(endPoint);
 
-			var client = new SocketClient(rawClient);
+			var client = new SocketClient(rawClient, logger);
 
 			client.WriteJson(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion));
 			while (client.IsDataAvailable == false) Thread.Sleep(10);
@@ -58,7 +60,7 @@ namespace StarComputer.Client
 
 			var agent = new Agent(this, endpoint);
 
-			var remote = new RemoteProtocolAgent(rawClient, agent);
+			var remote = new RemoteProtocolAgent(rawClient, agent, logger);
 
 			remote.Start();
 

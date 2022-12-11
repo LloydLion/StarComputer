@@ -45,6 +45,16 @@ namespace StarComputer.Shared.Utils
 #nullable restore
 		}
 
+		public bool ExecuteTask()
+		{
+			if (tasks.TryDequeue(out var task))
+			{
+				taskExecutor(task);
+				return true;
+			}
+			else return false;
+		}
+
 		public void ExecuteAllTasks()
 		{
 			while (tasks.TryDequeue(out var task))

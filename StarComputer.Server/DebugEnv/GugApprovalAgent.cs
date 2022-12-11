@@ -1,4 +1,6 @@
-﻿namespace StarComputer.Server.DebugEnv
+﻿using StarComputer.Shared.Connection;
+
+namespace StarComputer.Server.DebugEnv
 {
 	internal class GugApprovalAgent : IClientApprovalAgent
 	{

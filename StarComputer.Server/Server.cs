@@ -11,8 +11,25 @@ namespace StarComputer.Server
 {
 	internal class Server : IServer
 	{
-		private static readonly EventId ClientErrorID = new(11, "ClientError");
-		
+		private static readonly EventId ServerReadyID = new(10, "ServerReady");
+		private static readonly EventId WaitingNewTasksID = new(11, "WaitingNewTasks");
+		private static readonly EventId CloseSignalRecivedID = new(12, "CloseSignalRecived");
+		private static readonly EventId NewConnectionAcceptedID = new(13, "NewConnectionAccepted");
+		private static readonly EventId NewClientAcceptedID = new(14, "NewClientAccepted");
+		private static readonly EventId ClientConnectedID = new (15, "ClientConnected");
+		private static readonly EventId ClientJoinedID = new(16, "ClientJoined");
+		private static readonly EventId ClientRejoinedID = new(17, "ClientRejoined");
+		private static readonly EventId ClientConnectionLostID = new(18, "ClientConnectionLost");
+		private static readonly EventId ClientDisconnectedID = new(19, "ClientDisconnected");
+		private static readonly EventId MessageRecivedID = new(31, "MessageRecived");
+		private static readonly EventId ExecutingNewTaskID = new(32, "ExecutingNewTask");
+		private static readonly EventId FailedToExecuteTaskID = new(33, "FailedToExecuteTask");
+		private static readonly EventId ClientInitializeErrorID = new(21, "ClientInitializeError");
+		private static readonly EventId ClientConnectionFailID = new(22, "ClientConnectionFail");
+		private static readonly EventId ClientJoinFailID = new(23, "ClientJoinFail");
+		private static readonly EventId ClientRejoinFailID = new(24, "ClientRejoinFail");
+		private static readonly EventId ProtocolErrorID = new(25, "ProtocolError");
+
 
 		private readonly TcpListener connectionListener;
 		private readonly ServerConfiguration options;
@@ -20,7 +37,7 @@ namespace StarComputer.Server
 		private readonly IClientApprovalAgent clientApprovalAgent;
 		private readonly PortRentManager portRent;
 
-		private readonly Dictionary<RemoteProtocolAgent, RentedPort> agents = new();
+		private readonly Dictionary<RemoteProtocolAgent, ServerSideClientInformation> agents = new();
 		private readonly IMessageHandler messageHandler;
 		private readonly AgentWorker agentWorker;
 
@@ -52,12 +69,18 @@ namespace StarComputer.Server
 
 			SynchronizationContext.SetSynchronizationContext(mainThreadDispatcher.CraeteSynchronizationContext(s => s));
 
+			logger.Log(LogLevel.Information, ServerReadyID, "Server is ready and listen on {IP}:{Port}", options.Interface, options.ConnectionPort);
+
 			while (true)
 			{
+				logger.Log(LogLevel.Trace, WaitingNewTasksID, "Server is waiting new tasks or client connection");
+
 				var index = mainThreadDispatcher.WaitHandlers(waitForClient);
 
 				if (index == -1)
 				{
+					logger.Log(LogLevel.Information, CloseSignalRecivedID, "Server has recived close signal, closing");
+
 					connectionListener.Stop();
 					try { clientTask.Wait(); } catch (Exception) { }
 					return;
@@ -65,18 +88,27 @@ namespace StarComputer.Server
 
 				if (index == 0)
 				{
+
 					var rawClient = clientTask.Result;
 					clientTask = connectionListener.AcceptTcpClientAsync().ContinueWith(s => { waitForClient.Set(); return s.Result; });
 
+					logger.Log(LogLevel.Information, NewConnectionAcceptedID, "New connection accepted from {IP}", rawClient.Client.RemoteEndPoint);
+
 					try
 					{
-						var client = new SocketClient(rawClient);
+						var client = new SocketClient(rawClient, logger);
 
 						try
 						{
 							var request = client.ReadJson<ConnectionRequest>();
 
+							logger.Log(LogLevel.Information, NewClientAcceptedID, "New client accepted: {Login} ({IP}) v{Version}", request.Login, client.EndPoint, request.ProtocolVersion);
+
 							var responce = ProcessClientConnection(request, new(request.Login, client.EndPoint));
+
+							if (responce.StatusCode == ConnectionStausCode.Successful)
+								logger.Log(LogLevel.Information, ClientConnectedID, "Client ({Login}[{IP}]) connected to server successfully", request.Login, client.EndPoint);
+							else logger.Log(LogLevel.Error, ClientConnectionFailID, "Cannot connect client ({Login}[{IP}]). Status code {StatusCode}", request.Login, client.EndPoint, responce.StatusCode);
 
 							client.WriteJson(responce);
 						}
@@ -88,18 +120,23 @@ namespace StarComputer.Server
 					}
 					catch (Exception ex)
 					{
-						logger.LogError(ex, "!!!");
+						logger.Log(LogLevel.Error, ClientInitializeErrorID, ex, "Failed to initialize client");
 					}
 				}
 				else if (index == -2)
 				{
-					try
+					var flag = true;
+					while (flag)
 					{
-						mainThreadDispatcher.ExecuteAllTasks();
-					}
-					catch (Exception ex)
-					{
-						logger.LogError(ex, "$!!!");
+						try
+						{
+							logger.Log(LogLevel.Trace, ExecutingNewTaskID, "Server started to execute new task");
+							flag = mainThreadDispatcher.ExecuteTask();
+						}
+						catch (Exception ex)
+						{
+							logger.Log(LogLevel.Error, FailedToExecuteTaskID, ex, "Failed to execute some task");
+						}
 					}
 				}
 			}
@@ -130,16 +167,16 @@ namespace StarComputer.Server
 						port.Dispose();
 				}
 
-				ProcessClientJoin(port);
+				ProcessClientJoin(new(clientInformation, port), request);
 				var body = new SuccessfulConnectionResultBody(port.Port);
 				return new ConnectionResponce(ConnectionStausCode.Successful, null, JObject.FromObject(body), body.GetType().AssemblyQualifiedName);
 			}
 			else return new ConnectionResponce(ConnectionStausCode.NoFreePort, null, null, null);
 		}
 
-		private void ProcessClientJoin(RentedPort port)
+		private void ProcessClientJoin(ServerSideClientInformation information, ConnectionRequest request)
 		{
-			var listener = new TcpListener(options.Interface, port.Port);
+			var listener = new TcpListener(options.Interface, information.RentedPort.Port);
 			listener.Start();
 
 			var cts = new CancellationTokenSource();
@@ -150,7 +187,6 @@ namespace StarComputer.Server
 				lock (sychRoot)
 				{
 					cts.Cancel();
-					listener.Stop();
 				}
 			}));
 
@@ -158,26 +194,35 @@ namespace StarComputer.Server
 			{
 				lock (sychRoot)
 				{
+					listener.Stop();
+
 					if (clientTask.IsCompletedSuccessfully)
 					{
 						var client = clientTask.Result;
-						listener.Stop();
+
+						logger.Log(LogLevel.Information, ClientJoinedID, "Client ({Login}[{IP}]) joined", request.Login, information.ConnectionInformation.OriginalEndPoint);
 
 						mainThreadDispatcher.DispatchTask(() =>
 						{
-							var remote = new RemoteProtocolAgent(client, agentWorker);
+							var remote = new RemoteProtocolAgent(client, agentWorker, logger);
 							remote.Start();
-							agents.Add(remote, port);
+							agents.Add(remote, information);
 						});
+					}
+					else
+					{
+						if (clientTask.Exception is not null)
+							logger.Log(LogLevel.Error, ClientJoinFailID, clientTask.Exception, "Failed to join client ({Login}[{IP}])", request.Login, information.ConnectionInformation.OriginalEndPoint);
+						else logger.Log(LogLevel.Error, ClientJoinFailID, clientTask.Exception, "Failed to join client ({Login}[{IP}]). Reason: Timeout", request.Login, information.ConnectionInformation.OriginalEndPoint);
 					}
 				}
 			});
 
 		}
 
-		private void ReprocessClientJoin(RentedPort port, RemoteProtocolAgent agent)
+		private void ProcessClientRejoin(ServerSideClientInformation information, RemoteProtocolAgent agent)
 		{
-			var listener = new TcpListener(options.Interface, port.Port);
+			var listener = new TcpListener(options.Interface, information.RentedPort.Port);
 			listener.Start();
 
 			var cts = new CancellationTokenSource();
@@ -188,8 +233,6 @@ namespace StarComputer.Server
 				lock (sychRoot)
 				{
 					cts.Cancel();
-					listener.Stop();
-
 					agent.Disconnect();
 				}
 			}));
@@ -198,18 +241,29 @@ namespace StarComputer.Server
 			{
 				lock (sychRoot)
 				{
+					listener.Stop();
+
 					if (clientTask.IsCompletedSuccessfully)
 					{
 						var client = clientTask.Result;
-						listener.Stop();
+
+						logger.Log(LogLevel.Information, ClientRejoinedID, "Client ({Login}[{IP}]) rejoined", information.ConnectionInformation.Login, agent.CurrentEndPoint);
 
 						mainThreadDispatcher.DispatchTask(() => agent.Reconnect(client));
+					}
+					else
+					{
+						if (clientTask.Exception is not null)
+							logger.Log(LogLevel.Error, ClientRejoinFailID, clientTask.Exception, "Failed to rejoin client ({Login}[{IP}])", information.ConnectionInformation.Login, agent.CurrentEndPoint);
+						else logger.Log(LogLevel.Error, ClientRejoinFailID, clientTask.Exception, "Failed to rejoin client ({Login}[{IP}]). Reason: Timeout", information.ConnectionInformation.Login, agent.CurrentEndPoint);
 					}
 				}
 			});
 
 		}
 
+
+		private record struct ServerSideClientInformation(ClientConnectionInformation ConnectionInformation, RentedPort RentedPort);
 
 		private class PortRentManager
 		{
@@ -284,6 +338,8 @@ namespace StarComputer.Server
 
 			public void DispatchMessage(RemoteProtocolAgent agent, ProtocolMessage message)
 			{
+				owner.logger.Log(LogLevel.Debug, MessageRecivedID, "New message recived form client ({Login}[{IP}])\n\t{Message}", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint, message);
+
 				owner.mainThreadDispatcher.DispatchTask(() =>
 				{
 					owner.messageHandler.HandleMessageAsync(message, agent);
@@ -292,21 +348,25 @@ namespace StarComputer.Server
 
 			public void HandleDisconnect(RemoteProtocolAgent agent)
 			{
+				owner.logger.Log(LogLevel.Information, ClientDisconnectedID, "Client ({Login}[{IP}]) disconnected", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint);
+
 				owner.mainThreadDispatcher.DispatchTask(() =>
 				{
-					owner.agents[agent].Dispose();
+					owner.agents[agent].RentedPort.Dispose();
 					owner.agents.Remove(agent);
 				});
 			}
 
 			public void HandleError(RemoteProtocolAgent agent, Exception ex)
 			{
-				owner.logger.LogError(ex, "Error in agent");
+				owner.logger.Log(LogLevel.Error, ProtocolErrorID, ex, "Error in protocol agent for client ({Login}[{IP}])", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint);
 			}
 
 			public void ScheduleReconnect(RemoteProtocolAgent agent)
 			{
-				owner.ReprocessClientJoin(owner.agents[agent], agent);
+				owner.logger.Log(LogLevel.Information, ClientConnectionLostID, "Client ({Login}[{IP}]) connection lost", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint);
+
+				owner.ProcessClientRejoin(owner.agents[agent], agent);
 			}
 		}
 	}

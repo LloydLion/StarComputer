@@ -1,35 +1,38 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StarComputer.Shared.Utils;
-using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Sockets;
-using System.Text;
 
 namespace StarComputer.Shared.Protocol
 {
 	public class RemoteProtocolAgent
 	{
 		private SocketClient client;
-
 		private readonly IRemoteAgentWorker agentWorker;
+		private readonly ILogger logger;
 
 		private Thread readThread;
-
 		private Thread writeThread;
 		private ThreadDispatcher<WriteThreadTask> writeThreadDispatcher;
 
 		private bool isClosing = false;
 
 
-		public RemoteProtocolAgent(TcpClient client, IRemoteAgentWorker agentWorker)
+		public IPEndPoint CurrentEndPoint => client.EndPoint;
+
+
+		public RemoteProtocolAgent(TcpClient client, IRemoteAgentWorker agentWorker, ILogger logger)
 		{
-			this.client = new(client);
+			this.client = new(client, logger);
 
 			readThread = new Thread(ReadThreadHandler);
 			writeThread = new Thread(WriteThreadHandler);
 			writeThreadDispatcher = new(writeThread, WriteMessage);
 
 			this.agentWorker = agentWorker;
+			this.logger = logger;
 		}
 
 
@@ -49,7 +52,7 @@ namespace StarComputer.Shared.Protocol
 		{
 			DisconnectInternal();
 
-			client = new(newClient);
+			client = new(newClient, logger);
 
 			readThread = new Thread(ReadThreadHandler);
 			writeThread = new Thread(WriteThreadHandler);
@@ -134,6 +137,11 @@ namespace StarComputer.Shared.Protocol
 			while (isClosing == false)
 			{
 				var index = writeThreadDispatcher.WaitHandlers();
+
+				if (index == WaitHandle.WaitTimeout)
+				{
+					//.... periodic read task
+				}
 
 				if (index == -1)
 				{

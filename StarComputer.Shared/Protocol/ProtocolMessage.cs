@@ -1,4 +1,6 @@
-﻿namespace StarComputer.Shared.Protocol
+﻿using Newtonsoft.Json;
+
+namespace StarComputer.Shared.Protocol
 {
 	public class ProtocolMessage
 	{
@@ -33,5 +35,11 @@
 
 
 		public record Attachment(string Name, CopyToDelegate CopyDelegate, int Length);
+
+
+		public override string ToString()
+		{
+			return $"ProtocolMessage (timeStamp {TimeStamp.Ticks}, domain {Domain}, debug {DebugMessage ?? "No message"}) {JsonConvert.SerializeObject(Body)} - {Attachments?.Count ?? 0} attachments";
+		}
 	}
 }

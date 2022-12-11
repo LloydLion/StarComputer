@@ -1,4 +1,6 @@
-﻿namespace StarComputer.Server
+﻿using StarComputer.Shared.Connection;
+
+namespace StarComputer.Server
 {
 	internal interface IClientApprovalAgent
 	{
