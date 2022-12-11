@@ -1,15 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StarComputer.Shared;
 using StarComputer.Shared.Connection;
 using StarComputer.Shared.Protocol;
 using StarComputer.Shared.Utils;
-using System.Collections.Concurrent;
-using System.Diagnostics.CodeAnalysis;
-using System.Net;
-using System.Net.Security;
 using System.Net.Sockets;
 
 namespace StarComputer.Server
@@ -63,7 +58,7 @@ namespace StarComputer.Server
 
 				if (index == -1)
 				{
-					connectionListener.Start();
+					connectionListener.Stop();
 					try { clientTask.Wait(); } catch (Exception) { }
 					return;
 				}
@@ -194,6 +189,8 @@ namespace StarComputer.Server
 				{
 					cts.Cancel();
 					listener.Stop();
+
+					agent.Disconnect();
 				}
 			}));
 

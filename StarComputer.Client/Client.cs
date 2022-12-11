@@ -12,14 +12,16 @@ namespace StarComputer.Client
 	internal class Client : IClient
 	{
 		private readonly ClientConfiguration options;
-		private readonly AutoResetEvent onDisconnect = new(false);
 		private readonly IMessageHandler messageHandler;
+		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
 
 
 		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler)
 		{
 			this.options = options.Value;
 			this.messageHandler = messageHandler;
+
+			mainThreadDispatcher = new(Thread.CurrentThread, s => s());
 		}
 
 
@@ -48,67 +50,66 @@ namespace StarComputer.Client
 			client.Close();
 
 			//-----------------
-			
-			rawClient = new TcpClient();
-			rawClient.Connect(new IPEndPoint(endPoint.Address, port));
 
-			var onSomething = new AutoResetEvent(false);
-			var agent = new Agent(onSomething);
+			var endpoint = new IPEndPoint(endPoint.Address, port);
+
+			rawClient = new TcpClient();
+			rawClient.Connect(endpoint);
+
+			var agent = new Agent(this, endpoint);
 
 			var remote = new RemoteProtocolAgent(rawClient, agent);
 
 			remote.Start();
 
-			try
-			{
-				remote.SendMessageAsync(new ProtocolMessage("MAIN", "+", null, "Hello!")).Wait();
-			}
-			catch (Exception ex) { Console.WriteLine(ex); }
+			SynchronizationContext.SetSynchronizationContext(mainThreadDispatcher.CraeteSynchronizationContext(s => s));
 
-		waitNew:
-			onSomething.WaitOne();
 
-			if (agent.Reason == Agent.SomethingReason.Reconnect)
-			{
-				rawClient.Close();
-				rawClient = new TcpClient();
-				rawClient.Connect(new IPEndPoint(endPoint.Address, port));
+			mainThreadDispatcher.DispatchTask(() =>
+				remote.SendMessageAsync(new ProtocolMessage("MAIN", "+", null, "Hello!")));
 
-				remote.Reconnect(rawClient);
 
-				goto waitNew;
-			}
-			else if (agent.Reason == Agent.SomethingReason.Disconnect)
+			while (true)
 			{
-				Console.WriteLine("Done");
-			}
-			else
-			{
-				while (agent.Messages.TryDequeue(out var el))
+				var index = mainThreadDispatcher.WaitHandlers();
+
+
+				if (index == -2)
 				{
-					messageHandler.HandleMessageAsync(el.Item2, el.Item1);
+					try
+					{
+						mainThreadDispatcher.ExecuteAllTasks();
+					}
+					catch (Exception ex)
+					{
+						Console.WriteLine("!!!" + ex.ToString());
+					}
 				}
-
-				goto waitNew;
+				else //-1
+				{
+					
+					return;
+				}
 			}
 		}
 
 
 		private class Agent : IRemoteAgentWorker
 		{
-			private readonly AutoResetEvent onSomething;
+			private readonly Client owner;
+			private readonly IPEndPoint connectionPoint;
 
 
-			public Agent(AutoResetEvent onSomething)
+			public Agent(Client owner, IPEndPoint connectionPoint)
 			{
-				this.onSomething = onSomething;
+				this.owner = owner;
+				this.connectionPoint = connectionPoint;
 			}
 
 
 			public void HandleDisconnect(RemoteProtocolAgent agent)
 			{
-				Reason = SomethingReason.Disconnect;
-				onSomething.Set();
+				owner.mainThreadDispatcher.Close();
 			}
 
 			public void HandleError(RemoteProtocolAgent agent, Exception ex)
@@ -118,28 +119,29 @@ namespace StarComputer.Client
 
 			public void ScheduleReconnect(RemoteProtocolAgent agent)
 			{
-				Reason = SomethingReason.Reconnect;
-				onSomething.Set();
+				owner.mainThreadDispatcher.DispatchTask(async () =>
+				{
+					await Task.Delay(owner.options.ServerReconnectionPrepareTimeout);
+
+					var client = new TcpClient();
+
+					try { client.Connect(connectionPoint); }
+					catch (SocketException)
+					{
+						agent.Disconnect();
+						return;
+					}
+
+					agent.Reconnect(client);
+				});
 			}
 
 			public void DispatchMessage(RemoteProtocolAgent agent, ProtocolMessage message)
 			{
-				Reason = SomethingReason.Message;
-				Messages.Enqueue((agent, message));
-				onSomething.Set();
-			}
-
-
-			public SomethingReason Reason { get; private set; }
-
-			public ConcurrentQueue<(RemoteProtocolAgent, ProtocolMessage)> Messages { get; } = new();
-
-
-			public enum SomethingReason
-			{
-				Disconnect,
-				Reconnect,
-				Message
+				owner.mainThreadDispatcher.DispatchTask(() =>
+				{
+					owner.messageHandler.HandleMessageAsync(message, agent);
+				});
 			}
 		}
 	}

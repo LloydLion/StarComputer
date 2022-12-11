@@ -5,9 +5,15 @@
 		public const int ConnectionPort = 623;
 
 #if DEBUG
-		public const int ClientConnectTimeout = 120000;
+		public const int ClientConnectTimeout = ServerReconnectionPrepareTimeout + 120000;
 #else
-		public const int ClientConnectTimeout = 5000;
+		public const int ClientConnectTimeout = ServerReconnectionPrepareTimeout + 5000;
+#endif
+
+#if DEBUG
+		public const int ServerReconnectionPrepareTimeout = 5000;
+#else
+		public const int ServerReconnectionPrepareTimeout = 5000;
 #endif
 
 #if DEBUG

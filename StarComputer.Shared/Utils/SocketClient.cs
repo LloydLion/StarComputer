@@ -35,7 +35,22 @@ namespace StarComputer.Shared.Utils
 
 		public bool IsDataAvailable => stream.DataAvailable;
 
-		public bool IsConnected => client.Connected;
+		public bool IsConnected
+		{ 
+			get
+			{
+
+				try
+				{
+					stream.Write(ReadOnlySpan<byte>.Empty);
+					return true;
+				}
+				catch (Exception)
+				{
+					return false;
+				}
+			}
+		}
 
 		public IPEndPoint EndPoint { get; }
 
