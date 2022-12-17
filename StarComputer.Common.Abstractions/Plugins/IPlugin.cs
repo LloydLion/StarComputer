@@ -1,4 +1,5 @@
-﻿using StarComputer.Common.Abstractions.Protocol;
+﻿using StarComputer.Common.Abstractions.Plugins.Commands;
+using StarComputer.Common.Abstractions.Protocol;
 
 namespace StarComputer.Common.Abstractions.Plugins
 {
@@ -6,11 +7,15 @@ namespace StarComputer.Common.Abstractions.Plugins
 	{
 		public string Domain { get; }
 
+		public Type TargetUIContextType { get; }
 
-		public void SetupEnviroment(IPluginEnviroment enviroment);
 
-		public IEnumerable<Command> ListCommands();
+		public void Initialize(IProtocolEnviroment protocolEnviroment, IUIContext uiContext);
 
-		public Task HandleMessageAsync(ProtocolMessage message, IMessageContext context);
+		public void LoadCommands(ICommandRepositoryBuilder repository);
+
+		public ValueTask ProcessMessageAsync(ProtocolMessage message, IMessageContext messageContext);
+
+		public ValueTask ProcessCommandAsync(PluginCommandContext commandContext);
 	}
 }

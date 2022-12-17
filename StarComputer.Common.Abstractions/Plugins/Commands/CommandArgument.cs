@@ -1,4 +1,4 @@
-﻿namespace StarComputer.Common.Abstractions.Plugins
+﻿namespace StarComputer.Common.Abstractions.Plugins.Commands
 {
 	public record CommandArgument(string Name, CommandArgument.Type ArgumentType, string Description)
 	{

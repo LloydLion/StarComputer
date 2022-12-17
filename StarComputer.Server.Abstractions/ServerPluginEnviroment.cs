@@ -2,7 +2,7 @@
 
 namespace StarComputer.Server.Abstractions
 {
-	public class ServerPluginEnviroment : IPluginEnviroment
+	public class ServerPluginEnviroment : IProtocolEnviroment
 	{
 		public ServerPluginEnviroment(IServer server)
 		{
