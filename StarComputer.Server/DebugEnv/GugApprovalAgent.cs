@@ -1,8 +1,9 @@
-﻿using StarComputer.Shared.Connection;
+﻿using StarComputer.Common.Abstractions.Connection;
+using StarComputer.Server.Abstractions;
 
 namespace StarComputer.Server.DebugEnv
 {
-	internal class GugApprovalAgent : IClientApprovalAgent
+	public class GugApprovalAgent : IClientApprovalAgent
 	{
 		public Task<ClientApprovalResult?> ApproveClientAsync(ClientConnectionInformation clientInformation)
 		{

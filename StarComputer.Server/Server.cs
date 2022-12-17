@@ -1,10 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
-using StarComputer.Shared;
-using StarComputer.Shared.Connection;
-using StarComputer.Shared.Protocol;
-using StarComputer.Shared.Utils;
+using StarComputer.Common;
+using StarComputer.Common.Abstractions;
+using StarComputer.Common.Abstractions.Connection;
+using StarComputer.Common.Abstractions.Protocol;
+using StarComputer.Common.Protocol;
+using StarComputer.Common.Utils;
+using StarComputer.Server.Abstractions;
 using System.Net.Sockets;
 
 namespace StarComputer.Server
@@ -37,7 +40,7 @@ namespace StarComputer.Server
 		private readonly IClientApprovalAgent clientApprovalAgent;
 		private readonly PortRentManager portRent;
 
-		private readonly Dictionary<RemoteProtocolAgent, ServerSideClientInformation> agents = new();
+		private readonly Dictionary<IRemoteProtocolAgent, ServerSideClientInformation> agents = new();
 		private readonly IMessageHandler messageHandler;
 		private readonly AgentWorker agentWorker;
 
@@ -204,7 +207,7 @@ namespace StarComputer.Server
 
 						mainThreadDispatcher.DispatchTask(() =>
 						{
-							var remote = new RemoteProtocolAgent(client, agentWorker, logger);
+							IRemoteProtocolAgent remote = new RemoteProtocolAgent(client, agentWorker, logger);
 							remote.Start();
 							agents.Add(remote, information);
 						});
@@ -220,7 +223,7 @@ namespace StarComputer.Server
 
 		}
 
-		private void ProcessClientRejoin(ServerSideClientInformation information, RemoteProtocolAgent agent)
+		private void ProcessClientRejoin(ServerSideClientInformation information, IRemoteProtocolAgent agent)
 		{
 			var listener = new TcpListener(options.Interface, information.RentedPort.Port);
 			listener.Start();
@@ -273,7 +276,7 @@ namespace StarComputer.Server
 				yield return new ServerSideClient(agent.Value.ConnectionInformation, agent.Key);
 		}
 
-		public ServerSideClient GetClientByAgent(RemoteProtocolAgent protocolAgent)
+		public ServerSideClient GetClientByAgent(IRemoteProtocolAgent protocolAgent)
 		{
 			return new(agents[protocolAgent].ConnectionInformation, protocolAgent);
 		}
@@ -351,7 +354,7 @@ namespace StarComputer.Server
 			}
 
 
-			public void DispatchMessage(RemoteProtocolAgent agent, ProtocolMessage message)
+			public void DispatchMessage(IRemoteProtocolAgent agent, ProtocolMessage message)
 			{
 				owner.logger.Log(LogLevel.Debug, MessageRecivedID, "New message recived form client ({Login}[{IP}])\n\t{Message}", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint, message);
 
@@ -361,7 +364,7 @@ namespace StarComputer.Server
 				});
 			}
 
-			public void HandleDisconnect(RemoteProtocolAgent agent)
+			public void HandleDisconnect(IRemoteProtocolAgent agent)
 			{
 				owner.logger.Log(LogLevel.Information, ClientDisconnectedID, "Client ({Login}[{IP}]) disconnected", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint);
 
@@ -372,12 +375,12 @@ namespace StarComputer.Server
 				});
 			}
 
-			public void HandleError(RemoteProtocolAgent agent, Exception ex)
+			public void HandleError(IRemoteProtocolAgent agent, Exception ex)
 			{
 				owner.logger.Log(LogLevel.Error, ProtocolErrorID, ex, "Error in protocol agent for client ({Login}[{IP}])", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint);
 			}
 
-			public void ScheduleReconnect(RemoteProtocolAgent agent)
+			public void ScheduleReconnect(IRemoteProtocolAgent agent)
 			{
 				owner.logger.Log(LogLevel.Information, ClientConnectionLostID, "Client ({Login}[{IP}]) connection lost", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint);
 

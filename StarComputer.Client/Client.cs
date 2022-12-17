@@ -1,16 +1,16 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
-using StarComputer.Shared.Connection;
-using StarComputer.Shared.Protocol;
-using StarComputer.Shared.Utils;
-using System.Collections.Concurrent;
+using StarComputer.Common.Protocol;
+using StarComputer.Common.Utils;
 using System.Net;
 using System.Net.Sockets;
+using StarComputer.Client.Abstractions;
+using StarComputer.Common.Abstractions.Protocol;
+using StarComputer.Common.Abstractions.Connection;
 
 namespace StarComputer.Client
 {
-	internal class Client : IClient
+	public class Client : IClient
 	{
 		private readonly ClientConfiguration options;
 		private readonly IMessageHandler messageHandler;
@@ -67,10 +67,6 @@ namespace StarComputer.Client
 			SynchronizationContext.SetSynchronizationContext(mainThreadDispatcher.CraeteSynchronizationContext(s => s));
 
 
-			mainThreadDispatcher.DispatchTask(() =>
-				remote.SendMessageAsync(new ProtocolMessage("MAIN", "+", null, "Hello!")));
-
-
 			while (true)
 			{
 				var index = mainThreadDispatcher.WaitHandlers();
@@ -78,13 +74,17 @@ namespace StarComputer.Client
 
 				if (index == -2)
 				{
-					try
+					var flag = true;
+					while (flag)
 					{
-						mainThreadDispatcher.ExecuteAllTasks();
-					}
-					catch (Exception ex)
-					{
-						Console.WriteLine("!!!" + ex.ToString());
+						try
+						{
+							flag = mainThreadDispatcher.ExecuteTask();
+						}
+						catch (Exception)
+						{
+
+						}
 					}
 				}
 				else //-1
@@ -109,17 +109,17 @@ namespace StarComputer.Client
 			}
 
 
-			public void HandleDisconnect(RemoteProtocolAgent agent)
+			public void HandleDisconnect(IRemoteProtocolAgent agent)
 			{
 				owner.mainThreadDispatcher.Close();
 			}
 
-			public void HandleError(RemoteProtocolAgent agent, Exception ex)
+			public void HandleError(IRemoteProtocolAgent agent, Exception ex)
 			{
 				Console.WriteLine(ex.ToString());
 			}
 
-			public void ScheduleReconnect(RemoteProtocolAgent agent)
+			public void ScheduleReconnect(IRemoteProtocolAgent agent)
 			{
 				owner.mainThreadDispatcher.DispatchTask(async () =>
 				{
@@ -138,7 +138,7 @@ namespace StarComputer.Client
 				});
 			}
 
-			public void DispatchMessage(RemoteProtocolAgent agent, ProtocolMessage message)
+			public void DispatchMessage(IRemoteProtocolAgent agent, ProtocolMessage message)
 			{
 				owner.mainThreadDispatcher.DispatchTask(() =>
 				{

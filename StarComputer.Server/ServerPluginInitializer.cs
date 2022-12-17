@@ -1,4 +1,5 @@
-﻿using StarComputer.Shared.Plugins;
+﻿using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Server.Abstractions;
 
 namespace StarComputer.Server
 {

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -14,7 +14,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\StarComputer.Shared\StarComputer.Shared.csproj" />
+    <ProjectReference Include="..\StarComputer.Common\StarComputer.Common.csproj" />
+    <ProjectReference Include="..\StarComputer.Server.Abstractions\StarComputer.Server.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>
