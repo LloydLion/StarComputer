@@ -16,6 +16,7 @@ namespace StarComputer.Client
 		private readonly IMessageHandler messageHandler;
 		private readonly ILogger<Client> logger;
 		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
+		private IRemoteProtocolAgent? serverAgent = null;
 
 
 		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler, ILogger<Client> logger)
@@ -58,7 +59,7 @@ namespace StarComputer.Client
 			rawClient = new TcpClient();
 			rawClient.Connect(endpoint);
 
-			var agent = new Agent(this, endpoint);
+			var agent = new AgentWorker(this, endpoint);
 
 			var remote = new RemoteProtocolAgent(rawClient, agent, logger);
 
@@ -95,14 +96,21 @@ namespace StarComputer.Client
 			}
 		}
 
+		public IRemoteProtocolAgent GetServerAgent()
+		{
+			if (serverAgent is null)
+				throw new InvalidOperationException("Connect to server before get agent");
+			return serverAgent;
+		}
 
-		private class Agent : IRemoteAgentWorker
+
+		private class AgentWorker : IRemoteAgentWorker
 		{
 			private readonly Client owner;
 			private readonly IPEndPoint connectionPoint;
 
 
-			public Agent(Client owner, IPEndPoint connectionPoint)
+			public AgentWorker(Client owner, IPEndPoint connectionPoint)
 			{
 				this.owner = owner;
 				this.connectionPoint = connectionPoint;

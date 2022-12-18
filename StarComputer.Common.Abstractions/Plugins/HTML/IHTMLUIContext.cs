@@ -1,6 +1,6 @@
 ﻿namespace StarComputer.Common.Abstractions.Plugins.HTML
 {
-	public interface IHTMLUIContext
+	public interface IHTMLUIContext : IUIContext
 	{
 		public ValueTask<HTMLPageLoadResult> LoadHTMLPageAsync(string resourceName, PageConstructionBag constructionBag);
 
