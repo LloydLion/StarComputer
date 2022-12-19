@@ -1,19 +1,19 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Commands;
-using StarComputer.Server.Abstractions;
+using StarComputer.Client.Abstractions;
 
-namespace StarComputer.Server
+namespace StarComputer.Client
 {
-	public class ServerPluginInitializer<TUI> : IPluginInitializer where TUI : IUIContext
+	public class ClientPluginInitializer<TUI> : IPluginInitializer where TUI : IUIContext
 	{
-		private readonly IServer server;
+		private readonly IClient client;
 		private readonly ICommandRepositoryBuilder builder;
 		private readonly TUI ui;
 
 
-		public ServerPluginInitializer(IServer server, ICommandRepositoryBuilder builder, TUI ui)
+		public ClientPluginInitializer(IClient client, ICommandRepositoryBuilder builder, TUI ui)
 		{
-			this.server = server;
+			this.client = client;
 			this.builder = builder;
 			this.ui = ui;
 		}
@@ -25,7 +25,7 @@ namespace StarComputer.Server
 			{
 				if (plugin.TargetUIContextType.IsAssignableFrom(typeof(TUI)))
 				{
-					plugin.Initialize(new ServerProtocolEnvironment(server), ui);
+					plugin.Initialize(new ClientProtocolEnvironment(client), ui);
 
 					builder.BeginPluginInitalize(plugin);
 					plugin.LoadCommands(builder);

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace StarComputer.Common.Utils
+namespace StarComputer.Common.Abstractions.Utils
 {
 	public class ThreadDispatcher<TTask> where TTask : notnull
 	{

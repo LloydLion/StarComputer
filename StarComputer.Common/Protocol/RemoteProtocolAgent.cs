@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StarComputer.Common.Abstractions.Protocol;
-using StarComputer.Common.Utils;
+using StarComputer.Common.Abstractions.Utils;
 using System.Net;
 using System.Net.Sockets;
 

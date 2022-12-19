@@ -1,6 +1,6 @@
 ﻿namespace StarComputer.Common.Abstractions.Plugins
 {
-	public interface IProtocolEnviroment
+	public interface IProtocolEnvironment
 	{
 
 	}

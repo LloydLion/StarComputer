@@ -10,7 +10,7 @@ namespace StarComputer.Common.Abstractions.Plugins
 		public Type TargetUIContextType { get; }
 
 
-		public void Initialize(IProtocolEnviroment protocolEnviroment, IUIContext uiContext);
+		public void Initialize(IProtocolEnvironment protocolEnviroment, IUIContext uiContext);
 
 		public void LoadCommands(ICommandRepositoryBuilder repository);
 

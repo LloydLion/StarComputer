@@ -6,7 +6,7 @@
 
 		public void EndPluginInitalize();
 
-		public void AddCommand(Command command);
+		public void AddCommand(CommandModel command);
 
 		public void BakeToRepository(ICommandRepository repository);
 	}

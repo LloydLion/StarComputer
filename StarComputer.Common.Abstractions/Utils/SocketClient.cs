@@ -5,7 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace StarComputer.Common.Utils
+namespace StarComputer.Common.Abstractions.Utils
 {
 	public class SocketClient
 	{

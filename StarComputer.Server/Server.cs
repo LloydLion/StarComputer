@@ -6,7 +6,7 @@ using StarComputer.Common.Abstractions;
 using StarComputer.Common.Abstractions.Connection;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Protocol;
-using StarComputer.Common.Utils;
+using StarComputer.Common.Abstractions.Utils;
 using StarComputer.Server.Abstractions;
 using System.Net.Sockets;
 
@@ -47,7 +47,7 @@ namespace StarComputer.Server
 		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
 
 
-		public Server(IOptions<ServerConfiguration> options, ILogger<Server> logger, IClientApprovalAgent clientApprovalAgent, IMessageHandler messageHandler)
+		public Server(IOptions<ServerConfiguration> options, ILogger<Server> logger, IClientApprovalAgent clientApprovalAgent, IMessageHandler messageHandler, ThreadDispatcher<Action> mainThreadDispatcher)
 		{
 			options.Value.Validate();
 
@@ -59,7 +59,7 @@ namespace StarComputer.Server
 			portRent = new(options.Value.OperationsPortRange);
 			agentWorker = new(this);
 
-			mainThreadDispatcher = new(Thread.CurrentThread, s => s(), 1);
+			this.mainThreadDispatcher = mainThreadDispatcher;
 		}
 
 
@@ -69,8 +69,6 @@ namespace StarComputer.Server
 
 			var waitForClient = new AutoResetEvent(false);
 			Task<TcpClient> clientTask = connectionListener.AcceptTcpClientAsync().ContinueWith(s => { waitForClient.Set(); return s.Result; });
-
-			SynchronizationContext.SetSynchronizationContext(mainThreadDispatcher.CraeteSynchronizationContext(s => s));
 
 			logger.Log(LogLevel.Information, ServerReadyID, "Server is ready and listen on {IP}:{Port}", options.Interface, options.ConnectionPort);
 

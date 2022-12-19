@@ -28,7 +28,7 @@ namespace StarComputer.Common.Abstractions.Plugins
 				{
 					logger.Log(LogLevel.Debug, MessageHandledID, "Message handled by {PluginType} (domain: {Domain})", plugin.GetType().FullName, plugin.Domain);
 
-					await plugin.HandleMessageAsync(message, new Context(agent));
+					await plugin.ProcessMessageAsync(message, new Context(agent));
 
 					return;
 				}

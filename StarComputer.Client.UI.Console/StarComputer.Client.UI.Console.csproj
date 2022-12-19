@@ -14,7 +14,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\HelloPlugin\HelloPlugin.csproj" />
     <ProjectReference Include="..\StarComputer.Client\StarComputer.Client.csproj" />
+    <ProjectReference Include="..\StarComputer.UI.Console\StarComputer.UI.Console.csproj" />
   </ItemGroup>
 
 </Project>

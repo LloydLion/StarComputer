@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace StarComputer.Common.Utils.Logging
+namespace StarComputer.Common.Abstractions.Utils.Logging
 {
 	internal class FancyLogger : ILogger
 	{

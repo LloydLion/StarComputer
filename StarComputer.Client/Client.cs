@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using StarComputer.Common.Protocol;
-using StarComputer.Common.Utils;
+using StarComputer.Common.Abstractions.Utils;
 using System.Net;
 using System.Net.Sockets;
 using StarComputer.Client.Abstractions;
@@ -17,19 +17,23 @@ namespace StarComputer.Client
 		private readonly ILogger<Client> logger;
 		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
 		private IRemoteProtocolAgent? serverAgent = null;
+		private ConnectionConfiguration? connectionConfiguration = null;
 
 
-		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler, ILogger<Client> logger)
+		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler, ILogger<Client> logger, ThreadDispatcher<Action> mainThreadDispatcher)
 		{
 			this.options = options.Value;
 			this.messageHandler = messageHandler;
 			this.logger = logger;
-			mainThreadDispatcher = new(Thread.CurrentThread, s => s());
+			this.mainThreadDispatcher = mainThreadDispatcher;
 		}
 
 
-		public void Connect(IPEndPoint endPoint, string serverPassword, string login)
+		public void Connect(ConnectionConfiguration connectionConfiguration)
 		{
+			(IPEndPoint endPoint, string serverPassword, string login) = connectionConfiguration;
+			this.connectionConfiguration = connectionConfiguration;
+
 			var rawClient = new TcpClient();
 			rawClient.Connect(endPoint);
 
@@ -61,9 +65,9 @@ namespace StarComputer.Client
 
 			var agent = new AgentWorker(this, endpoint);
 
-			var remote = new RemoteProtocolAgent(rawClient, agent, logger);
+			serverAgent = new RemoteProtocolAgent(rawClient, agent, logger);
 
-			remote.Start();
+			serverAgent.Start();
 
 			SynchronizationContext.SetSynchronizationContext(mainThreadDispatcher.CraeteSynchronizationContext(s => s));
 
@@ -94,6 +98,13 @@ namespace StarComputer.Client
 					return;
 				}
 			}
+		}
+
+		public ConnectionConfiguration GetConnectionConfiguration()
+		{
+			if (connectionConfiguration is null)
+				throw new InvalidOperationException("Connect to server before get agent");
+			return connectionConfiguration.Value;
 		}
 
 		public IRemoteProtocolAgent GetServerAgent()
