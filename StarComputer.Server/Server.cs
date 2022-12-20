@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
-using StarComputer.Common;
 using StarComputer.Common.Abstractions;
 using StarComputer.Common.Abstractions.Connection;
 using StarComputer.Common.Abstractions.Protocol;
@@ -9,6 +8,7 @@ using StarComputer.Common.Protocol;
 using StarComputer.Common.Abstractions.Utils;
 using StarComputer.Server.Abstractions;
 using System.Net.Sockets;
+using StarComputer.Common.Abstractions.Threading;
 
 namespace StarComputer.Server
 {
@@ -44,10 +44,10 @@ namespace StarComputer.Server
 		private readonly IMessageHandler messageHandler;
 		private readonly AgentWorker agentWorker;
 
-		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
+		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 
 
-		public Server(IOptions<ServerConfiguration> options, ILogger<Server> logger, IClientApprovalAgent clientApprovalAgent, IMessageHandler messageHandler, ThreadDispatcher<Action> mainThreadDispatcher)
+		public Server(IOptions<ServerConfiguration> options, ILogger<Server> logger, IClientApprovalAgent clientApprovalAgent, IMessageHandler messageHandler, IThreadDispatcher<Action> mainThreadDispatcher)
 		{
 			options.Value.Validate();
 
@@ -72,13 +72,16 @@ namespace StarComputer.Server
 
 			logger.Log(LogLevel.Information, ServerReadyID, "Server is ready and listen on {IP}:{Port}", options.Interface, options.ConnectionPort);
 
+			Span<WaitHandle> alsoWait = new WaitHandle[1];
+			alsoWait[0] = waitForClient;
+
 			while (true)
 			{
 				logger.Log(LogLevel.Trace, WaitingNewTasksID, "Server is waiting new tasks or client connection");
 
-				var index = mainThreadDispatcher.WaitHandlers(waitForClient);
+				var index = mainThreadDispatcher.WaitHandles(alsoWait);
 
-				if (index == -1)
+				if (index == ThreadDispatcherStatic.ClosedIndex)
 				{
 					logger.Log(LogLevel.Information, CloseSignalRecivedID, "Server has recived close signal, closing");
 
@@ -89,7 +92,6 @@ namespace StarComputer.Server
 
 				if (index == 0)
 				{
-
 					var rawClient = clientTask.Result;
 					clientTask = connectionListener.AcceptTcpClientAsync().ContinueWith(s => { waitForClient.Set(); return s.Result; });
 
@@ -124,7 +126,7 @@ namespace StarComputer.Server
 						logger.Log(LogLevel.Error, ClientInitializeErrorID, ex, "Failed to initialize client");
 					}
 				}
-				else if (index == -2)
+				else if (index == ThreadDispatcherStatic.NewTaskIndex)
 				{
 					var flag = true;
 					while (flag)

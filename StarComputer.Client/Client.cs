@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Connection;
+using StarComputer.Common.Abstractions.Threading;
 
 namespace StarComputer.Client
 {
@@ -15,12 +16,12 @@ namespace StarComputer.Client
 		private readonly ClientConfiguration options;
 		private readonly IMessageHandler messageHandler;
 		private readonly ILogger<Client> logger;
-		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
+		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 		private IRemoteProtocolAgent? serverAgent = null;
 		private ConnectionConfiguration? connectionConfiguration = null;
 
 
-		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler, ILogger<Client> logger, ThreadDispatcher<Action> mainThreadDispatcher)
+		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler, ILogger<Client> logger, IThreadDispatcher<Action> mainThreadDispatcher)
 		{
 			this.options = options.Value;
 			this.messageHandler = messageHandler;
@@ -74,7 +75,7 @@ namespace StarComputer.Client
 
 			while (true)
 			{
-				var index = mainThreadDispatcher.WaitHandlers();
+				var index = mainThreadDispatcher.WaitHandles(ReadOnlySpan<WaitHandle>.Empty);
 
 
 				if (index == -2)

@@ -1,5 +1,5 @@
 ﻿using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
-using StarComputer.Common.Abstractions.Utils;
+using StarComputer.Common.Abstractions.Threading;
 using System.Text;
 using SConsole = System.Console;
 
@@ -8,12 +8,12 @@ namespace StarComputer.UI.Console.Plugins
 	public class ConsoleUIContext : IConsoleUIContext, IDisposable
 	{
 		private readonly Thread uiThread;
-		private readonly ThreadDispatcher<Action> mainThreadDispatcher;
+		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 		private readonly List<Action<string>> newLineSentSubs = new();
 		private bool isClosing = false;
 
 
-		public ConsoleUIContext(ThreadDispatcher<Action> mainThreadDispatcher)
+		public ConsoleUIContext(IThreadDispatcher<Action> mainThreadDispatcher)
 		{
 			uiThread = new Thread(ThreadHandle);
 			uiThread.Start();
@@ -118,10 +118,10 @@ namespace StarComputer.UI.Console.Plugins
 		private class NewLineSentSubWrap
 		{
 			private readonly Action<string> sub;
-			private readonly ThreadDispatcher<Action> dispatcher;
+			private readonly IThreadDispatcher<Action> dispatcher;
 
 
-			public NewLineSentSubWrap(Action<string> sub, ThreadDispatcher<Action> dispatcher)
+			public NewLineSentSubWrap(Action<string> sub, IThreadDispatcher<Action> dispatcher)
 			{
 				this.sub = sub;
 				this.dispatcher = dispatcher;

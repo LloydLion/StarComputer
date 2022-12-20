@@ -10,8 +10,8 @@ using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
 using StarComputer.UI.Console.Plugins;
 using StarComputer.Common.Plugins.Commands;
 using StarComputer.Common.Abstractions.Plugins.Commands;
-using StarComputer.Common.Abstractions.Utils;
-using HelloPlugin;
+using StarComputer.Common.Abstractions.Threading;
+using StarComputer.Common.Threading;
 
 var services = new ServiceCollection()
 	.Configure<ServerConfiguration>(config =>
@@ -25,18 +25,18 @@ var services = new ServiceCollection()
 	.AddTransient<IClientApprovalAgent, GugApprovalAgent>()
 	.AddTransient<IConsoleUIContext, ConsoleUIContext>()
 
-	.AddSingleton(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s(), otherWaits: 1))
+	.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 
 	.AddSingleton<ICommandRepository, CommandRepository>()
 
 	.AddSingleton<IPlugin>(new HelloPlugin.HelloPlugin())
 
-	.AddLogging(builder => builder.SetMinimumLevel(LogLevel.None).AddFancyLogging())
+	.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddFancyLogging())
 
 	.BuildServiceProvider();
 
 
-SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<ThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
+SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
 
 var builder = new CommandRespositoryBuilder();
 

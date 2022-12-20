@@ -1,31 +1,20 @@
-﻿using System.Collections.Concurrent;
+﻿using StarComputer.Common.Abstractions.Threading;
+using System.Collections.Concurrent;
 
-namespace StarComputer.Common.Abstractions.Utils
+namespace StarComputer.Common.Threading
 {
-	public class ThreadDispatcher<TTask> where TTask : notnull
+	public class ThreadDispatcher<TTask> : IThreadDispatcher<TTask> where TTask : notnull
 	{
 		private readonly ConcurrentQueue<TTask> tasks = new();
-		private readonly WaitHandle?[] handles;
 		private readonly AutoResetEvent onNewTask = new(false);
 		private readonly AutoResetEvent onClose = new(false);
 		private readonly Thread targetThread;
 		private readonly Action<TTask> taskExecutor;
+		private WaitHandle[]? handles = null;
 
 
 		public ThreadDispatcher(Thread targetThread, Action<TTask> taskExecutor)
 		{
-			handles = new WaitHandle[2];
-			handles[0] = onNewTask;
-			handles[1] = onClose;
-			this.targetThread = targetThread;
-			this.taskExecutor = taskExecutor;
-		}
-
-		public ThreadDispatcher(Thread targetThread, Action<TTask> taskExecutor, int otherWaits)
-		{
-			handles = new WaitHandle[otherWaits + 2];
-			handles[0] = onNewTask;
-			handles[1] = onClose;
 			this.targetThread = targetThread;
 			this.taskExecutor = taskExecutor;
 		}
@@ -35,14 +24,6 @@ namespace StarComputer.Common.Abstractions.Utils
 		{
 			tasks.Enqueue(task);
 			onNewTask.Set();
-		}
-
-		public int WaitHandlers(params WaitHandle[] parameters)
-		{
-			parameters.CopyTo(handles, 2);
-#nullable disable
-			return WaitHandle.WaitAny(handles) - 2;
-#nullable restore
 		}
 
 		public bool ExecuteTask()
@@ -55,27 +36,36 @@ namespace StarComputer.Common.Abstractions.Utils
 			else return false;
 		}
 
-		public void ExecuteAllTasks()
-		{
-			while (tasks.TryDequeue(out var task))
-			{
-				taskExecutor(task);
-			}
-		}
-
 		public void Close()
 		{
 			onClose.Set();
 		}
 
-		public ConcurrentQueue<TTask> GetQueueUnsafe()
+		public IEnumerable<TTask> GetQueue()
 		{
-			return tasks;
+			return tasks.ToArray();
 		}
 
 		public SynchronizationContext CraeteSynchronizationContext(Func<Action, TTask> packer)
 		{
 			return new DispatcherSynchronizationContext(this, packer);
+		}
+
+		public int WaitHandles(ReadOnlySpan<WaitHandle> handles, int timeout = -1)
+		{
+			if (this.handles is null || this.handles.Length != handles.Length + 2)
+				this.handles = new WaitHandle[handles.Length + 2];
+
+			this.handles[0] = onNewTask;
+			this.handles[1] = onClose;
+			handles.CopyTo(this.handles.AsSpan(2));
+
+			var index = WaitHandle.WaitAny(this.handles, timeout);
+
+			if (index == 0) return ThreadDispatcherStatic.NewTaskIndex;
+			else if (index == 1) return ThreadDispatcherStatic.ClosedIndex;
+			else if (index == WaitHandle.WaitTimeout) return ThreadDispatcherStatic.TimeoutIndex;
+			else return index - 2;
 		}
 
 

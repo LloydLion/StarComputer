@@ -2,7 +2,9 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StarComputer.Common.Abstractions.Protocol;
+using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Abstractions.Utils;
+using StarComputer.Common.Threading;
 using System.Net;
 using System.Net.Sockets;
 
@@ -14,11 +16,8 @@ namespace StarComputer.Common.Protocol
 		private readonly IRemoteAgentWorker agentWorker;
 		private readonly ILogger logger;
 
-		private Thread readThread;
-		private Thread writeThread;
-		private ThreadDispatcher<WriteThreadTask> writeThreadDispatcher;
-
-		private bool isClosing = false;
+		private Thread workThread;
+		private IThreadDispatcher<WriteThreadTask> workThreadDispatcher;
 
 
 		public IPEndPoint CurrentEndPoint => client.EndPoint;
@@ -28,9 +27,8 @@ namespace StarComputer.Common.Protocol
 		{
 			this.client = new(client, logger);
 
-			readThread = new Thread(ReadThreadHandler);
-			writeThread = new Thread(WriteThreadHandler);
-			writeThreadDispatcher = new(writeThread, WriteMessage);
+			workThread = new Thread(WorkThreadHandler);
+			workThreadDispatcher = new ThreadDispatcher<WriteThreadTask>(workThread, WriteMessage);
 
 			this.agentWorker = agentWorker;
 			this.logger = logger;
@@ -39,8 +37,7 @@ namespace StarComputer.Common.Protocol
 
 		public void Start()
 		{
-			readThread.Start();
-			writeThread.Start();
+			workThread.Start();
 		}
 
 		public void Disconnect()
@@ -55,11 +52,8 @@ namespace StarComputer.Common.Protocol
 
 			client = new(newClient, logger);
 
-			readThread = new Thread(ReadThreadHandler);
-			writeThread = new Thread(WriteThreadHandler);
-			writeThreadDispatcher = new(writeThread, WriteMessage);
-
-			isClosing = false;
+			workThread = new Thread(WorkThreadHandler);
+			workThreadDispatcher = new ThreadDispatcher<WriteThreadTask>(workThread, WriteMessage);
 
 			Start();
 		}
@@ -67,100 +61,100 @@ namespace StarComputer.Common.Protocol
 		public Task SendMessageAsync(ProtocolMessage message)
 		{
 			var tcs = new TaskCompletionSource();
-			writeThreadDispatcher.DispatchTask(new(message, tcs));
+			workThreadDispatcher.DispatchTask(new(message, tcs));
 			return tcs.Task;
 		}
 
 		private void DisconnectInternal()
 		{
-			isClosing = true;
+			workThreadDispatcher.Close();
 
-			writeThreadDispatcher.Close();
-
-			writeThread.Join();
-			readThread.Join();
+			workThread.Join();
 
 			client.Close();
 		}
 
-		private void ReadThreadHandler()
+		private void WorkThreadHandler()
 		{
-			while (isClosing == false)
+			while (true)
 			{
 				try
 				{
-					Thread.Sleep(100);
+					var index = workThreadDispatcher.WaitHandles(ReadOnlySpan<WaitHandle>.Empty, 100);
 
-					if (client.IsConnected == false)
+					if (index == ThreadDispatcherStatic.ClosedIndex)
 					{
-						agentWorker.ScheduleReconnect(this);
+						var queue = workThreadDispatcher.GetQueue();
+						foreach (var task in queue)
+							task.Task.SetResult();
 						return;
 					}
-
-					if (isClosing) return;
-
-					while (client.IsDataAvailable)
+					else if (index == ThreadDispatcherStatic.TimeoutIndex)
 					{
-						var messageContent = client.ReadJson<MessageJsonContent>();
+						ExecutePeriodicTasks();
+					}
+					else //ThreadDispatcherStatic.NewTaskIndex
+					{
+						LinkedList<Exception>? exceptions = null;
+						var flag = true;
 
-						List<ProtocolMessage.Attachment>? attachments = null;
-
-						if (messageContent.AttachmentLengths is not null)
+						while (flag)
 						{
-							attachments = new();
-
-							foreach (var attachment in messageContent.AttachmentLengths)
+							try
 							{
-								var buffer = client.ReadBytes(attachment.Value);
-								attachments.Add(new(attachment.Key, new BufferCopier(buffer).CopyToAsync, attachment.Value));
+								flag = workThreadDispatcher.ExecuteTask();
+							}
+							catch (Exception ex)
+							{
+								if (exceptions is null)
+									exceptions = new();
+								exceptions.AddLast(ex);
 							}
 						}
 
-						var body = messageContent.Body?.ToObject(Type.GetType(messageContent.BodyTypeAssemblyQualifiedName ?? throw new NullReferenceException(), true) ?? throw new NullReferenceException());
-
-						var message = new ProtocolMessage(new DateTime(messageContent.TimeStampUtcTicks), messageContent.ProviderDomain, body, attachments, messageContent.DebugMessage);
-
-
-						agentWorker.DispatchMessage(this, message);
+						if (exceptions is not null)
+							throw new AggregateException(exceptions.ToArray());
 					}
 				}
 				catch (Exception ex)
 				{
 					agentWorker.HandleError(this, ex);
 					agentWorker.ScheduleReconnect(this);
-					return;
 				}
 			}
 		}
 
-		private void WriteThreadHandler()
+		private void ExecutePeriodicTasks()
 		{
-			while (isClosing == false)
+			if (client.IsConnected == false)
 			{
-				var index = writeThreadDispatcher.WaitHandlers();
+				agentWorker.ScheduleReconnect(this);
+				return;
+			}
 
-				if (index == WaitHandle.WaitTimeout)
+			while (client.IsDataAvailable)
+			{
+				var messageContent = client.ReadJson<MessageJsonContent>();
+
+				List<ProtocolMessage.Attachment>? attachments = null;
+
+				if (messageContent.AttachmentLengths is not null)
 				{
-					//.... periodic read task
+					attachments = new();
+
+					foreach (var attachment in messageContent.AttachmentLengths)
+					{
+						var buffer = client.ReadBytes(attachment.Value);
+						attachments.Add(new(attachment.Key, new BufferCopier(buffer).CopyToAsync, attachment.Value));
+					}
 				}
 
-				if (index == -1)
-				{
-					var queue = writeThreadDispatcher.GetQueueUnsafe();
-					while (queue.TryDequeue(out var task))
-						task.Task.SetResult();
-					return;
-				}
+				var body = messageContent.Body?.ToObject(Type.GetType(messageContent.BodyTypeAssemblyQualifiedName ?? throw new NullReferenceException(), true) ?? throw new NullReferenceException());
 
-				try
-				{
-					writeThreadDispatcher.ExecuteAllTasks();
-				}
-				catch (Exception ex)
-				{
-					agentWorker.HandleError(this, ex);
-					agentWorker.ScheduleReconnect(this);
-				}
+				var message = new ProtocolMessage(new DateTime(messageContent.TimeStampUtcTicks), messageContent.ProviderDomain, body, attachments, messageContent.DebugMessage);
+
+
+				agentWorker.DispatchMessage(this, message);
 			}
 		}
 
