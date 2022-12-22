@@ -9,6 +9,7 @@ using StarComputer.Common.Abstractions.Utils;
 using StarComputer.Server.Abstractions;
 using System.Net.Sockets;
 using StarComputer.Common.Abstractions.Threading;
+using StarComputer.Common.Abstractions.Plugins;
 
 namespace StarComputer.Server
 {
@@ -63,7 +64,7 @@ namespace StarComputer.Server
 		}
 
 
-		public void Listen()
+		public void Listen(IPluginStore plugins)
 		{
 			connectionListener.Start(options.MaxPendingConnectionQueue);
 

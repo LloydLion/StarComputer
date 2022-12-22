@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Protocol;
 
-namespace StarComputer.Common.Abstractions.Plugins
+namespace StarComputer.Common.Plugins
 {
 	public class PluginOrientedMessageHandler : IMessageHandler
 	{

@@ -7,20 +7,29 @@ using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Commands;
 using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
 using StarComputer.Common.Abstractions.Protocol;
-using StarComputer.Common.DebugEnv;
 using StarComputer.Common.Plugins.Commands;
-using StarComputer.Common.Abstractions.Utils;
 using StarComputer.Common.Abstractions.Utils.Logging;
 using StarComputer.UI.Console.Plugins;
 using System.Net;
 using StarComputer.Common.Threading;
 using StarComputer.Common.Abstractions.Threading;
+using StarComputer.Common.Plugins;
+using Microsoft.Extensions.Configuration;
+
+
+var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile(
+#if DEBUG
+	"config-dev.json"
+#else
+	"config.json"
+#endif
+	).Build();
+
+Console.WriteLine("Using configuration: " + config.GetDebugView());
+Console.WriteLine();
 
 var services = new ServiceCollection()
-	.Configure<ClientConfiguration>(config =>
-	{
-
-	})
+	.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
 
 	.AddSingleton<IClient, Client>()
 
@@ -31,30 +40,36 @@ var services = new ServiceCollection()
 
 	.AddSingleton<ICommandRepository, CommandRepository>()
 
-	.AddSingleton<IPlugin>(new HelloPlugin.HelloPlugin())
+	.AddSingleton<ICommandRepository, CommandRepository>()
+	.AddSingleton<IPluginLoader, ReflectionPluginLoader>()
+	.AddSingleton<IPluginStore, PluginStore>()
 
-	.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddFancyLogging())
+	.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddFancyLogging())
+
 	.BuildServiceProvider();
 
 
+var client = services.GetRequiredService<IClient>();
+var ui = services.GetRequiredService<IConsoleUIContext>();
+
 SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
 
-var builder = new CommandRespositoryBuilder();
+var plugins = services.GetRequiredService<IPluginStore>();
+var pluginLoader = services.GetRequiredService<IPluginLoader>();
+var commandRepositoryBuilder = new CommandRespositoryBuilder();
+var pluginInitializer = new ClientPluginInitializer<IConsoleUIContext>(client, commandRepositoryBuilder, ui);
 
-var initializer = new ClientPluginInitializer<IConsoleUIContext>(services.GetRequiredService<IClient>(), builder, services.GetRequiredService<IConsoleUIContext>());
-initializer.InitializePlugins(services.GetServices<IPlugin>());
+pluginInitializer.InitializePlugins(services.GetServices<IPlugin>());
 
-builder.BakeToRepository(services.GetRequiredService<ICommandRepository>());
+await plugins.InitializeStoreAsync(pluginLoader);
+plugins.InitalizePlugins(pluginInitializer);
+commandRepositoryBuilder.BakeToRepository(services.GetRequiredService<ICommandRepository>());
 
 
-Console.WriteLine("Server IP: 127.0.0.1");
-IPAddress address = IPAddress.Parse("127.0.0.1");
-Console.WriteLine("Server port: " + StaticInformation.ConnectionPort);
-int port = StaticInformation.ConnectionPort;
-Console.WriteLine("Server password: DEBUG PASSWORD");
-var password = "DEBUG PASSWORD";
 Console.Write("Login: ");
 var login = Console.ReadLine() ?? throw new NullReferenceException();
 
+var connectionConfig = config.GetSection("Connection");
+(var ip, var port, var password) = (connectionConfig.GetValue<string>("IP"), connectionConfig.GetValue<int>("Port"), connectionConfig.GetValue<string>("Password"));
 
-services.GetRequiredService<IClient>().Connect(new ConnectionConfiguration(new(address, port), password, login));
+client.Connect(new ConnectionConfiguration(new(IPAddress.Parse(ip ?? throw new NullReferenceException()), port), password ?? throw new NullReferenceException(), login), plugins);

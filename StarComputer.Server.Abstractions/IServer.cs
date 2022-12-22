@@ -1,10 +1,11 @@
-﻿using StarComputer.Common.Abstractions.Protocol;
+﻿using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Protocol;
 
 namespace StarComputer.Server.Abstractions
 {
 	public interface IServer
 	{
-		public void Listen();
+		public void Listen(IPluginStore plugins);
 
 		public void Close();
 

@@ -8,6 +8,7 @@ using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Connection;
 using StarComputer.Common.Abstractions.Threading;
+using StarComputer.Common.Abstractions.Plugins;
 
 namespace StarComputer.Client
 {
@@ -30,7 +31,7 @@ namespace StarComputer.Client
 		}
 
 
-		public void Connect(ConnectionConfiguration connectionConfiguration)
+		public void Connect(ConnectionConfiguration connectionConfiguration, IPluginStore plugins)
 		{
 			(IPEndPoint endPoint, string serverPassword, string login) = connectionConfiguration;
 			this.connectionConfiguration = connectionConfiguration;

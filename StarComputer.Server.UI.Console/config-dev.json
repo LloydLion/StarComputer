@@ -1,0 +1,20 @@
+﻿{
+	"Server":
+	{
+		"Interface": "127.0.0.1",
+		"Password" : "DEBUG PASSWORD"
+	},
+
+	"Logging":
+	{
+		"MinLevel": "Trace"
+	},
+
+	"PluginLoading":
+	{
+		"Reflection":
+		{
+			"PluginDirectories": ["plugins", "plugins-dev"]
+		}
+	}
+}

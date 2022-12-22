@@ -48,8 +48,6 @@ namespace StarComputer.Common.Protocol
 
 		public void Reconnect(TcpClient newClient)
 		{
-			DisconnectInternal();
-
 			client = new(newClient, logger);
 
 			workThread = new Thread(WorkThreadHandler);
@@ -69,7 +67,8 @@ namespace StarComputer.Common.Protocol
 		{
 			workThreadDispatcher.Close();
 
-			workThread.Join();
+			if (Environment.CurrentManagedThreadId != workThread.ManagedThreadId)
+				workThread.Join();
 
 			client.Close();
 		}
@@ -118,8 +117,10 @@ namespace StarComputer.Common.Protocol
 				}
 				catch (Exception ex)
 				{
+					DisconnectInternal();
 					agentWorker.HandleError(this, ex);
 					agentWorker.ScheduleReconnect(this);
+					return;
 				}
 			}
 		}
@@ -128,6 +129,7 @@ namespace StarComputer.Common.Protocol
 		{
 			if (client.IsConnected == false)
 			{
+				DisconnectInternal();
 				agentWorker.ScheduleReconnect(this);
 				return;
 			}

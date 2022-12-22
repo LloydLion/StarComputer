@@ -16,4 +16,8 @@
     <ProjectReference Include="..\StarComputer.Common.Abstractions\StarComputer.Common.Abstractions.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Plugins\Loading\" />
+  </ItemGroup>
+
 </Project>

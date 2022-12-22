@@ -12,12 +12,29 @@ using StarComputer.Common.Plugins.Commands;
 using StarComputer.Common.Abstractions.Plugins.Commands;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Threading;
+using System.Net;
+using Microsoft.Extensions.Configuration;
+using StarComputer.Common.Plugins;
+
+
+var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile(
+#if DEBUG
+	"config-dev.json"
+#else
+	"config.json"
+#endif
+	).Build();
+
+Console.WriteLine("Using configuration: " + config.GetDebugView());
+Console.WriteLine();
 
 var services = new ServiceCollection()
-	.Configure<ServerConfiguration>(config =>
+	.Configure<ServerConfiguration>(s =>
 	{
-
+		config.GetSection("Server").Bind(s);
+		s.Interface = IPAddress.Parse(config.GetSection("Server").GetValue<string>(nameof(s.Interface)) ?? throw new NullReferenceException());
 	})
+	.Configure<ReflectionPluginLoader.Options>(s => config.GetSection("PluginLoading:Reflection").Bind(s))
 
 	.AddSingleton<IServer, Server>()
 
@@ -28,22 +45,26 @@ var services = new ServiceCollection()
 	.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 
 	.AddSingleton<ICommandRepository, CommandRepository>()
+	.AddSingleton<IPluginLoader, ReflectionPluginLoader>()
+	.AddSingleton<IPluginStore, PluginStore>()
 
-	.AddSingleton<IPlugin>(new HelloPlugin.HelloPlugin())
-
-	.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Trace).AddFancyLogging())
+	.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddFancyLogging())
 
 	.BuildServiceProvider();
 
 
+var server = services.GetRequiredService<IServer>();
+var ui = services.GetRequiredService<IConsoleUIContext>();
+
 SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
 
-var builder = new CommandRespositoryBuilder();
+var plugins = services.GetRequiredService<IPluginStore>();
+var pluginLoader = services.GetRequiredService<IPluginLoader>();
+var commandRepositoryBuilder = new CommandRespositoryBuilder();
+var pluginInitializer = new ServerPluginInitializer<IConsoleUIContext>(server, commandRepositoryBuilder, ui);
 
-var initializer = new ServerPluginInitializer<IConsoleUIContext>(services.GetRequiredService<IServer>(), builder, services.GetRequiredService<IConsoleUIContext>());
-initializer.InitializePlugins(services.GetServices<IPlugin>());
+await plugins.InitializeStoreAsync(pluginLoader);
+plugins.InitalizePlugins(pluginInitializer);
+commandRepositoryBuilder.BakeToRepository(services.GetRequiredService<ICommandRepository>());
 
-builder.BakeToRepository(services.GetRequiredService<ICommandRepository>());
-
-
-services.GetRequiredService<IServer>().Listen();
+server.Listen(plugins);
