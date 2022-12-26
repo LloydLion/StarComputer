@@ -10,11 +10,11 @@ namespace StarComputer.Common.Plugins
 		private static readonly EventId UnknownMessageDomainID = new(42, "UnknownMessageDomain");
 
 
-		private readonly IEnumerable<IPlugin> plugins;
+		private readonly IPluginStore plugins;
 		private readonly ILogger<PluginOrientedMessageHandler> logger;
 
 
-		public PluginOrientedMessageHandler(IEnumerable<IPlugin> plugins, ILogger<PluginOrientedMessageHandler> logger)
+		public PluginOrientedMessageHandler(IPluginStore plugins, ILogger<PluginOrientedMessageHandler> logger)
 		{
 			this.plugins = plugins;
 			this.logger = logger;
@@ -23,19 +23,16 @@ namespace StarComputer.Common.Plugins
 
 		public async Task HandleMessageAsync(ProtocolMessage message, IRemoteProtocolAgent agent)
 		{
-			foreach (var plugin in plugins)
+			if (plugins.TryGetValue(message.Domain, out var plugin))
 			{
-				if (plugin.Domain == message.Domain)
-				{
-					logger.Log(LogLevel.Debug, MessageHandledID, "Message handled by {PluginType} (domain: {Domain})", plugin.GetType().FullName, plugin.Domain);
+				logger.Log(LogLevel.Debug, MessageHandledID, "Message handled by {PluginType} (domain: {Domain})", plugin.GetType().FullName, plugin.Domain);
 
-					await plugin.ProcessMessageAsync(message, new Context(agent));
-
-					return;
-				}
+				await plugin.ProcessMessageAsync(message, new Context(agent));
 			}
-
-			logger.Log(LogLevel.Warning, UnknownMessageDomainID, "Unknown message domain - {Message}", message);
+			else
+			{
+				logger.Log(LogLevel.Warning, UnknownMessageDomainID, "Unknown message domain - {Message}", message);
+			}
 		}
 
 		private class Context : IMessageContext

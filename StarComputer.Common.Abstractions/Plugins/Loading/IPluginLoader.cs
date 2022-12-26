@@ -1,4 +1,4 @@
-﻿namespace StarComputer.Common.Abstractions.Plugins
+﻿namespace StarComputer.Common.Abstractions.Plugins.Loading
 {
 	public interface IPluginLoader
 	{

@@ -15,7 +15,10 @@ using StarComputer.Common.Threading;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Plugins;
 using Microsoft.Extensions.Configuration;
-
+using StarComputer.Common.Plugins.Loading;
+using StarComputer.Common.Abstractions.Plugins.Loading;
+using StarComputer.Common.Protocol.Bodies;
+using StarComputer.Common.Abstractions.Protocol.Bodies;
 
 var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile(
 #if DEBUG
@@ -30,6 +33,10 @@ Console.WriteLine();
 
 var services = new ServiceCollection()
 	.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
+	.Configure<ReflectionPluginLoader.Options>(s =>
+	{
+		s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
+	})
 
 	.AddSingleton<IClient, Client>()
 
@@ -39,6 +46,7 @@ var services = new ServiceCollection()
 	.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 
 	.AddSingleton<ICommandRepository, CommandRepository>()
+	.AddSingleton<IBodyTypeResolver, BodyTypeResolver>()
 
 	.AddSingleton<ICommandRepository, CommandRepository>()
 	.AddSingleton<IPluginLoader, ReflectionPluginLoader>()
@@ -57,19 +65,21 @@ SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<ITh
 var plugins = services.GetRequiredService<IPluginStore>();
 var pluginLoader = services.GetRequiredService<IPluginLoader>();
 var commandRepositoryBuilder = new CommandRespositoryBuilder();
-var pluginInitializer = new ClientPluginInitializer<IConsoleUIContext>(client, commandRepositoryBuilder, ui);
+var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 
-pluginInitializer.InitializePlugins(services.GetServices<IPlugin>());
+var pluginInitializer = new ClientPluginInitializer<IConsoleUIContext>(client, commandRepositoryBuilder, bodyTypeResolverBuilder, ui);
 
 await plugins.InitializeStoreAsync(pluginLoader);
 plugins.InitalizePlugins(pluginInitializer);
+
 commandRepositoryBuilder.BakeToRepository(services.GetRequiredService<ICommandRepository>());
+bodyTypeResolverBuilder.BakeToResolver(services.GetRequiredService<IBodyTypeResolver>());
 
 
 Console.Write("Login: ");
-var login = Console.ReadLine() ?? throw new NullReferenceException();
+var login = Console.ReadLine()!;
 
 var connectionConfig = config.GetSection("Connection");
 (var ip, var port, var password) = (connectionConfig.GetValue<string>("IP"), connectionConfig.GetValue<int>("Port"), connectionConfig.GetValue<string>("Password"));
 
-client.Connect(new ConnectionConfiguration(new(IPAddress.Parse(ip ?? throw new NullReferenceException()), port), password ?? throw new NullReferenceException(), login), plugins);
+client.Connect(new ConnectionConfiguration(new(IPAddress.Parse(ip!), port), password!, login), plugins);

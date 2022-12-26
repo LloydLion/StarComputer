@@ -10,6 +10,7 @@ using StarComputer.Server.Abstractions;
 using System.Net.Sockets;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Protocol.Bodies;
 
 namespace StarComputer.Server
 {
@@ -40,6 +41,7 @@ namespace StarComputer.Server
 		private readonly ILogger<Server> logger;
 		private readonly IClientApprovalAgent clientApprovalAgent;
 		private readonly PortRentManager portRent;
+		private readonly IBodyTypeResolver bodyTypeResolver;
 
 		private readonly Dictionary<IRemoteProtocolAgent, ServerSideClientInformation> agents = new();
 		private readonly IMessageHandler messageHandler;
@@ -47,8 +49,13 @@ namespace StarComputer.Server
 
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 
-
-		public Server(IOptions<ServerConfiguration> options, ILogger<Server> logger, IClientApprovalAgent clientApprovalAgent, IMessageHandler messageHandler, IThreadDispatcher<Action> mainThreadDispatcher)
+		public Server(
+			IOptions<ServerConfiguration> options,
+			ILogger<Server> logger,
+			IClientApprovalAgent clientApprovalAgent,
+			IMessageHandler messageHandler,
+			IThreadDispatcher<Action> mainThreadDispatcher,
+			IBodyTypeResolver bodyTypeResolver)
 		{
 			options.Value.Validate();
 
@@ -61,6 +68,7 @@ namespace StarComputer.Server
 			agentWorker = new(this);
 
 			this.mainThreadDispatcher = mainThreadDispatcher;
+			this.bodyTypeResolver = bodyTypeResolver;
 		}
 
 
@@ -208,7 +216,7 @@ namespace StarComputer.Server
 
 						mainThreadDispatcher.DispatchTask(() =>
 						{
-							IRemoteProtocolAgent remote = new RemoteProtocolAgent(client, agentWorker, logger);
+							IRemoteProtocolAgent remote = new RemoteProtocolAgent(client, agentWorker, logger, bodyTypeResolver);
 							remote.Start();
 							agents.Add(remote, information);
 						});

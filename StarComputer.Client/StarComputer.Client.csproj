@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\StarComputer.Client.Abstractions\StarComputer.Client.Abstractions.csproj" />
     <ProjectReference Include="..\StarComputer.Common\StarComputer.Common.csproj" />
+    <ProjectReference Include="..\StarComputer.PluginDevelopmentKit\StarComputer.PluginDevelopmentKit.csproj" />
   </ItemGroup>
 
 </Project>

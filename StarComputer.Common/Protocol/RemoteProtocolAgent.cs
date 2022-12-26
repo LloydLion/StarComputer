@@ -2,6 +2,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StarComputer.Common.Abstractions.Protocol;
+using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Abstractions.Utils;
 using StarComputer.Common.Threading;
@@ -15,6 +16,7 @@ namespace StarComputer.Common.Protocol
 		private SocketClient client;
 		private readonly IRemoteAgentWorker agentWorker;
 		private readonly ILogger logger;
+		private readonly IBodyTypeResolver bodyTypeResolver;
 
 		private Thread workThread;
 		private IThreadDispatcher<WriteThreadTask> workThreadDispatcher;
@@ -23,7 +25,7 @@ namespace StarComputer.Common.Protocol
 		public IPEndPoint CurrentEndPoint => client.EndPoint;
 
 
-		public RemoteProtocolAgent(TcpClient client, IRemoteAgentWorker agentWorker, ILogger logger)
+		public RemoteProtocolAgent(TcpClient client, IRemoteAgentWorker agentWorker, ILogger logger, IBodyTypeResolver bodyTypeResolver)
 		{
 			this.client = new(client, logger);
 
@@ -32,6 +34,7 @@ namespace StarComputer.Common.Protocol
 
 			this.agentWorker = agentWorker;
 			this.logger = logger;
+			this.bodyTypeResolver = bodyTypeResolver;
 		}
 
 
@@ -151,9 +154,9 @@ namespace StarComputer.Common.Protocol
 					}
 				}
 
-				var body = messageContent.Body?.ToObject(Type.GetType(messageContent.BodyTypeAssemblyQualifiedName ?? throw new NullReferenceException(), true) ?? throw new NullReferenceException());
+				var body = messageContent.Body?.ToObject(bodyTypeResolver.Resolve(new(messageContent.BodyType!, messageContent.MessageDomain)));
 
-				var message = new ProtocolMessage(new DateTime(messageContent.TimeStampUtcTicks), messageContent.ProviderDomain, body, attachments, messageContent.DebugMessage);
+				var message = new ProtocolMessage(new DateTime(messageContent.TimeStampUtcTicks), messageContent.MessageDomain, body, attachments, messageContent.DebugMessage);
 
 
 				agentWorker.DispatchMessage(this, message);
@@ -173,11 +176,20 @@ namespace StarComputer.Common.Protocol
 					attachmentLengths.Add(attachment.Name, attachment.Length);
 			}
 
+			string? bodyTypePseudoName = null;
+
+			if (message.Body is not null)
+			{
+				var fullBodyTypeName = bodyTypeResolver.Code(message.Body.GetType());
+				if (message.Domain != fullBodyTypeName.TargetDomain)
+					throw new ArgumentException("Domain for body and marked in message are not equals");
+				bodyTypePseudoName = fullBodyTypeName.PseudoTypeName;
+			}
 
 			var jsonObject = new MessageJsonContent(
 				message.TimeStamp.Ticks,
 				message.Domain,
-				message.Body?.GetType().AssemblyQualifiedName,
+				bodyTypePseudoName,
 				message.Body is null ? null : JToken.FromObject(message.Body),
 				message.DebugMessage,
 				attachmentLengths
@@ -215,8 +227,8 @@ namespace StarComputer.Common.Protocol
 
 		private record MessageJsonContent(
 			[JsonProperty(PropertyName = "TimeStamp")] long TimeStampUtcTicks,
-			[JsonProperty(PropertyName = "Domain")] string ProviderDomain,
-			[JsonProperty(PropertyName = "BodyType")] string? BodyTypeAssemblyQualifiedName,
+			[JsonProperty(PropertyName = "Domain")] string MessageDomain,
+			[JsonProperty(PropertyName = "BodyType")] string? BodyType,
 			[JsonProperty(PropertyName = "Body")] JToken? Body,
 			[JsonProperty(PropertyName = "Debug")] string? DebugMessage,
 			[JsonProperty(PropertyName = "AttachmentTable")] IReadOnlyDictionary<string, int>? AttachmentLengths

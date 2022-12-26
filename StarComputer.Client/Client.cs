@@ -9,6 +9,7 @@ using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Connection;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Protocol.Bodies;
 
 namespace StarComputer.Client
 {
@@ -18,16 +19,22 @@ namespace StarComputer.Client
 		private readonly IMessageHandler messageHandler;
 		private readonly ILogger<Client> logger;
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
+		private readonly IBodyTypeResolver bodyTypeResolver;
 		private IRemoteProtocolAgent? serverAgent = null;
 		private ConnectionConfiguration? connectionConfiguration = null;
 
 
-		public Client(IOptions<ClientConfiguration> options, IMessageHandler messageHandler, ILogger<Client> logger, IThreadDispatcher<Action> mainThreadDispatcher)
+		public Client(IOptions<ClientConfiguration> options,
+				IMessageHandler messageHandler,
+				ILogger<Client> logger,
+				IThreadDispatcher<Action> mainThreadDispatcher,
+				IBodyTypeResolver bodyTypeResolver)
 		{
 			this.options = options.Value;
 			this.messageHandler = messageHandler;
 			this.logger = logger;
 			this.mainThreadDispatcher = mainThreadDispatcher;
+			this.bodyTypeResolver = bodyTypeResolver;
 		}
 
 
@@ -67,7 +74,7 @@ namespace StarComputer.Client
 
 			var agent = new AgentWorker(this, endpoint);
 
-			serverAgent = new RemoteProtocolAgent(rawClient, agent, logger);
+			serverAgent = new RemoteProtocolAgent(rawClient, agent, logger, bodyTypeResolver);
 
 			serverAgent.Start();
 

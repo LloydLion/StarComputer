@@ -1,5 +1,6 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Commands;
+using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Server.Abstractions;
 
 namespace StarComputer.Server
@@ -7,14 +8,16 @@ namespace StarComputer.Server
 	public class ServerPluginInitializer<TUI> : IPluginInitializer where TUI : IUIContext
 	{
 		private readonly IServer server;
-		private readonly ICommandRepositoryBuilder builder;
+		private readonly ICommandRepositoryBuilder commandsBuilder;
+		private readonly IBodyTypeResolverBuilder resolverBuilder;
 		private readonly TUI ui;
 
 
-		public ServerPluginInitializer(IServer server, ICommandRepositoryBuilder builder, TUI ui)
+		public ServerPluginInitializer(IServer server, ICommandRepositoryBuilder commandsBuilder, IBodyTypeResolverBuilder resolverBuilder, TUI ui)
 		{
 			this.server = server;
-			this.builder = builder;
+			this.commandsBuilder = commandsBuilder;
+			this.resolverBuilder = resolverBuilder;
 			this.ui = ui;
 		}
 
@@ -25,13 +28,16 @@ namespace StarComputer.Server
 			{
 				if (plugin.TargetUIContextType.IsAssignableFrom(typeof(TUI)))
 				{
-					plugin.Initialize(new ServerProtocolEnvironment(server), ui);
+					resolverBuilder.SetupDomain(plugin.Domain);
+					commandsBuilder.BeginPluginInitalize(plugin);
 
-					builder.BeginPluginInitalize(plugin);
-					plugin.LoadCommands(builder);
-					builder.EndPluginInitalize();
+					plugin.InitializeAndBuild(new ServerProtocolEnvironment(server), ui, commandsBuilder, resolverBuilder);
+
+					commandsBuilder.EndPluginInitalize();
 				}
 			}
+
+			resolverBuilder.ResetDomain();
 		}
 	}
 }

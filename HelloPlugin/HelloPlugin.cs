@@ -3,6 +3,7 @@ using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Commands;
 using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
 using StarComputer.Common.Abstractions.Protocol;
+using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Server.Abstractions;
 
 namespace HelloPlugin
@@ -13,9 +14,9 @@ namespace HelloPlugin
 		private IConsoleUIContext? ui = null;
 
 
-		private IProtocolEnvironment Protocol => protocol ?? throw new NullReferenceException();
+		private IProtocolEnvironment Protocol => protocol!;
 
-		private IConsoleUIContext UI => ui ?? throw new NullReferenceException();
+		private IConsoleUIContext UI => ui!;
 
 		private string UserName => Protocol is IClientProtocolEnviroment client ? "Client/" + client.Client.GetConnectionConfiguration().Login : "Server";
 
@@ -24,8 +25,15 @@ namespace HelloPlugin
 		public Type TargetUIContextType => typeof(IConsoleUIContext);
 
 
-		public void Initialize(IProtocolEnvironment protocolEnviroment, IUIContext uiContext)
+		public void InitializeAndBuild(
+			IProtocolEnvironment protocolEnviroment,
+			IUIContext uiContext,
+			ICommandRepositoryBuilder commandsBuilder,
+			IBodyTypeResolverBuilder resolverBuilder)
 		{
+			resolverBuilder.RegisterAllias(typeof(GreetingBody), "greeting");
+
+
 			ui = (IConsoleUIContext)uiContext;
 			protocol = protocolEnviroment;
 
@@ -61,11 +69,6 @@ namespace HelloPlugin
 					await client.Client.GetServerAgent().SendMessageAsync(message);
 				}
 			}
-		}
-
-		public void LoadCommands(ICommandRepositoryBuilder repository)
-		{
-			
 		}
 
 		public ValueTask ProcessCommandAsync(PluginCommandContext commandContext)

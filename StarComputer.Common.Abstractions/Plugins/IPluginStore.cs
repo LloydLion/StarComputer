@@ -1,4 +1,6 @@
-﻿namespace StarComputer.Common.Abstractions.Plugins
+﻿using StarComputer.Common.Abstractions.Plugins.Loading;
+
+namespace StarComputer.Common.Abstractions.Plugins
 {
 	public interface IPluginStore : IReadOnlyDictionary<string, IPlugin>
 	{

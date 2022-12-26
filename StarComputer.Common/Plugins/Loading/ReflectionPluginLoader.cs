@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Options;
 using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Plugins.Loading;
 using System.Reflection;
 
-namespace StarComputer.Common.Plugins
+namespace StarComputer.Common.Plugins.Loading
 {
 	public class ReflectionPluginLoader : IPluginLoader
 	{
@@ -15,23 +16,23 @@ namespace StarComputer.Common.Plugins
 		}
 
 
-		public async ValueTask<IEnumerable<IPlugin>> LoadPluginsAsync()
+		public ValueTask<IEnumerable<IPlugin>> LoadPluginsAsync()
 		{
 			var plugins = new List<IPlugin>();
 
-			foreach (var directory in options.PluginDirectories)
+			foreach (var directory in options.GetPluginDirectories())
 			{
 				if (Directory.Exists(directory) == false)
 					continue;
 
-				var dlls = Directory.EnumerateFiles(directory, "*.dll");
+				var dlls = Directory.EnumerateFiles(directory, "*.dll", SearchOption.AllDirectories);
 
 				foreach (var dll in dlls)
 				{
 					try
 					{
-						var asmBytes = await File.ReadAllBytesAsync(dll);
-						var assembly = Assembly.Load(asmBytes);
+						var path = Path.GetFullPath(dll);
+						var assembly = Assembly.LoadFile(path);
 						var pluginTypes = assembly.GetTypes().Where(s => s.IsAssignableTo(typeof(IPlugin)));
 
 						foreach (var pluginType in pluginTypes)
@@ -54,16 +55,22 @@ namespace StarComputer.Common.Plugins
 				}
 			}
 
-			return plugins;
+			return ValueTask.FromResult<IEnumerable<IPlugin>>(plugins);
 		}
 
 
 		public class Options
 		{
-			private string[]? pluginDirectories;
+			public const char DirectoriesSeporatorChar = ';';
 
 
-			public string[] PluginDirectories { get => pluginDirectories ??= new[] { "plugins" }; set => pluginDirectories = value; }
+			public string? PluginDirectories { get; set; }
+
+
+			public string[] GetPluginDirectories()
+			{
+				return PluginDirectories?.Split(DirectoriesSeporatorChar) ?? Array.Empty<string>();
+			}
 		}
 	}
 }

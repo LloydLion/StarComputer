@@ -14,7 +14,7 @@
 	{
 		"Reflection":
 		{
-			"PluginDirectories": ["plugins"]
+			"PluginDirectories": "plugins"
 		}
 	}
 }
