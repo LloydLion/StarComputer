@@ -10,6 +10,8 @@ namespace StarComputer.Common.Abstractions.Plugins
 
 		public Type TargetUIContextType { get; }
 
+		public Version Version { get; }
+
 
 		public void InitializeAndBuild(IProtocolEnvironment protocolEnviroment, IUIContext uiContext, ICommandRepositoryBuilder commandsBuilder, IBodyTypeResolverBuilder resolverBuilder);
 

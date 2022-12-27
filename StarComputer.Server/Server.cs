@@ -116,7 +116,7 @@ namespace StarComputer.Server
 
 							logger.Log(LogLevel.Information, NewClientAcceptedID, "New client accepted: {Login} ({IP}) v{Version}", request.Login, client.EndPoint, request.ProtocolVersion);
 
-							var responce = ProcessClientConnection(request, new(request.Login, client.EndPoint));
+							var responce = ProcessClientConnection(request, new(request.Login, client.EndPoint), plugins);
 
 							if (responce.StatusCode == ConnectionStausCode.Successful)
 								logger.Log(LogLevel.Information, ClientConnectedID, "Client ({Login}[{IP}]) connected to server successfully", request.Login, client.EndPoint);
@@ -154,13 +154,17 @@ namespace StarComputer.Server
 			}
 		}
 
-		private ConnectionResponce ProcessClientConnection(ConnectionRequest request, ClientConnectionInformation clientInformation)
+		private ConnectionResponce ProcessClientConnection(ConnectionRequest request, ClientConnectionInformation clientInformation, IPluginStore plugins)
 		{
 			if (request.ProtocolVersion != options.TargetProtocolVersion)
 				return new ConnectionResponce(ConnectionStausCode.IncompatibleVersion, $"Target version is {options.TargetProtocolVersion}", null, null);
 
 			if (request.ServerPassword != options.ServerPassword)
 				return new ConnectionResponce(ConnectionStausCode.InvalidPassword, request.ServerPassword, null, null);
+
+			var versions = plugins.ToDictionary(s => s.Key, s => s.Value.Version);
+			if (request.Plugins.SequenceEqual(versions) == false)
+				return new ConnectionResponce(ConnectionStausCode.IncompatiblePluginVersion, "Invalid version of some plugin", null, null);
 
 			if (portRent.TryRentPort(out var port))
 			{

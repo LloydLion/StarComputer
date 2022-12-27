@@ -5,6 +5,7 @@ using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Server.Abstractions;
+using System.Reflection;
 
 namespace HelloPlugin
 {
@@ -23,6 +24,8 @@ namespace HelloPlugin
 		public string Domain => "Hello";
 
 		public Type TargetUIContextType => typeof(IConsoleUIContext);
+
+		public Version Version { get; } = Assembly.GetExecutingAssembly().GetName().Version!;
 
 
 		public void InitializeAndBuild(

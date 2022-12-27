@@ -8,5 +8,6 @@
 		NoFreePort = 15,
 		ComputerRejected = 16,
 		IncompatibleVersion = 17,
+		IncompatiblePluginVersion = 18,
 	}
 }

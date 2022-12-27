@@ -48,7 +48,8 @@ namespace StarComputer.Client
 
 			var client = new SocketClient(rawClient, logger);
 
-			client.WriteJson(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion));
+			var pluginsVersions = plugins.ToDictionary(s => s.Key, s => s.Value.Version);
+			client.WriteJson(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion, pluginsVersions));
 			while (client.IsDataAvailable == false) Thread.Sleep(10);
 			var responce = client.ReadJson<ConnectionResponce>();
 			
