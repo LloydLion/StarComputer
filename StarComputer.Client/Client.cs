@@ -15,6 +15,26 @@ namespace StarComputer.Client
 {
 	public class Client : IClient
 	{
+		private static readonly EventId ClientReadyID = new(10, "ClientReady");
+		private static readonly EventId WaitingNewTasksID = new(11, "WaitingNewTasks");
+		private static readonly EventId CloseSignalRecivedID = new(12, "CloseSignalRecived");
+		private static readonly EventId NewConnectionToServerID = new(13, "NewConnectionToServer");
+		private static readonly EventId ClientDataSentID = new(14, "ClientDataSent");
+		private static readonly EventId ConnectionAsClientID = new(15, "ConnectionAsClient");
+		private static readonly EventId ClientJoinedID = new(16, "ClientJoined");
+		private static readonly EventId ClientRejoinedID = new(17, "ClientRejoined");
+		private static readonly EventId ConnectionLostID = new(18, "ClientConnectionLost");
+		private static readonly EventId DisconnectedID = new(19, "Disconnected");
+		private static readonly EventId MessageRecivedID = new(31, "MessageRecived");
+		private static readonly EventId ExecutingNewTaskID = new(32, "ExecutingNewTask");
+		private static readonly EventId FailedToExecuteTaskID = new(33, "FailedToExecuteTask");
+		private static readonly EventId DebugMessageFromServerID = new(34, "DebugMessageFromServer");
+		private static readonly EventId ClientConnectionFailID = new(21, "ClientConnectionFail");
+		private static readonly EventId ClientJoinFailID = new(22, "ClientJoinFail");
+		private static readonly EventId ClientRejoinFailID = new(23, "ClientRejoinFail");
+		private static readonly EventId ProtocolErrorID = new(24, "ProtocolError");
+
+
 		private readonly ClientConfiguration options;
 		private readonly IMessageHandler messageHandler;
 		private readonly ILogger<Client> logger;
@@ -40,50 +60,77 @@ namespace StarComputer.Client
 
 		public void Connect(ConnectionConfiguration connectionConfiguration, IPluginStore plugins)
 		{
+			logger.Log(LogLevel.Information, ClientReadyID, "Client ready to connection to a server");
+
 			(IPEndPoint endPoint, string serverPassword, string login) = connectionConfiguration;
 			this.connectionConfiguration = connectionConfiguration;
 
 			var rawClient = new TcpClient();
 			rawClient.Connect(endPoint);
 
-			var client = new SocketClient(rawClient, logger);
+			logger.Log(LogLevel.Information, NewConnectionToServerID, "New connection to {ServerEndPoint}", endPoint);
 
-			var pluginsVersions = plugins.ToDictionary(s => s.Key, s => s.Value.Version);
-			client.WriteJson(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion, pluginsVersions));
-			while (client.IsDataAvailable == false) Thread.Sleep(10);
-			var responce = client.ReadJson<ConnectionResponce>();
+			int port;
+
+			try
+			{
+				var client = new SocketClient(rawClient, logger);
+
+				var pluginsVersions = plugins.ToDictionary(s => s.Key, s => s.Value.Version);
+				client.WriteJson(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion, pluginsVersions));
+
+				logger.Log(LogLevel.Debug, ClientDataSentID, "Client data sent to server at {ServerEndPoint}. Login - {Login}, password - {Password}", endPoint, login, serverPassword);
+
+				while (client.IsDataAvailable == false) Thread.Sleep(10);
+				var responce = client.ReadJson<ConnectionResponce>();
 			
-			if (responce.DebugMessage is not null)
-				Console.WriteLine("Debug: " + responce.DebugMessage);
+				if (responce.DebugMessage is not null)
+					logger.Log(LogLevel.Debug, DebugMessageFromServerID, "Debug message from server: {DebugMessage}", responce.DebugMessage);
 
-			if (responce.StatusCode != ConnectionStausCode.Successful)
-				throw new Exception($"Connection failed: {responce.StatusCode}");
+				if (responce.StatusCode != ConnectionStausCode.Successful)
+					throw new Exception($"Connection failed: {responce.StatusCode}");
 
-			var bodyJson = responce.ResponceBody ?? throw new NullReferenceException();
-			var body = bodyJson.ToObject<SuccessfulConnectionResultBody>() ?? throw new NullReferenceException();
+				var bodyJson = responce.ResponceBody ?? throw new NullReferenceException();
+				var body = bodyJson.ToObject<SuccessfulConnectionResultBody>() ?? throw new NullReferenceException();
 
-			var port = body.ConnectionPort;
+				port = body.ConnectionPort;
 
-			client.Close();
+				client.Close();
 
-			//-----------------
+				logger.Log(LogLevel.Information, ConnectionAsClientID, "Connected to server, join port - {JoinPort}", port);
+			}
+			catch (Exception ex)
+			{
+				logger.Log(LogLevel.Error, ClientConnectionFailID, ex, "Failed to connect to the server");
+				return;
+			}
 
-			var endpoint = new IPEndPoint(endPoint.Address, port);
+			try
+			{
+				var endpoint = new IPEndPoint(endPoint.Address, port);
+	
+				rawClient = new TcpClient();
+				rawClient.Connect(endpoint);
 
-			rawClient = new TcpClient();
-			rawClient.Connect(endpoint);
+				var agent = new AgentWorker(this, endpoint);
 
-			var agent = new AgentWorker(this, endpoint);
+				serverAgent = new RemoteProtocolAgent(rawClient, agent, logger, bodyTypeResolver);
 
-			serverAgent = new RemoteProtocolAgent(rawClient, agent, logger, bodyTypeResolver);
+				serverAgent.Start();
 
-			serverAgent.Start();
-
-			SynchronizationContext.SetSynchronizationContext(mainThreadDispatcher.CraeteSynchronizationContext(s => s));
+				logger.Log(LogLevel.Information, ClientJoinedID, "Joined to {ServerEndPoint} as ({Login}[{LocalIP}])",
+					endPoint, connectionConfiguration.Login, (IPEndPoint)rawClient.Client.LocalEndPoint!);
+			}
+			catch (Exception ex)
+			{
+				logger.Log(LogLevel.Error, ClientJoinFailID, ex, "Failed to join to server at {ServerEndPoint}", endPoint);
+				return;
+			}
 
 
 			while (true)
 			{
+				logger.Log(LogLevel.Trace, WaitingNewTasksID, "Waiting for new task or server message");
 				var index = mainThreadDispatcher.WaitHandles(ReadOnlySpan<WaitHandle>.Empty);
 
 
@@ -94,17 +141,18 @@ namespace StarComputer.Client
 					{
 						try
 						{
+							logger.Log(LogLevel.Trace, ExecutingNewTaskID, "Executing new client task");
 							flag = mainThreadDispatcher.ExecuteTask();
 						}
-						catch (Exception)
+						catch (Exception ex)
 						{
-
+							logger.Log(LogLevel.Error, FailedToExecuteTaskID, ex, "Failed to execute some task");
 						}
 					}
 				}
 				else //-1
 				{
-					
+					logger.Log(LogLevel.Information, CloseSignalRecivedID, "Client closing by internal command");
 					return;
 				}
 			}
@@ -140,16 +188,18 @@ namespace StarComputer.Client
 
 			public void HandleDisconnect(IRemoteProtocolAgent agent)
 			{
+				owner.logger.Log(LogLevel.Information, DisconnectedID, "Disconnection from server, session end, client stop work");
 				owner.mainThreadDispatcher.Close();
 			}
 
 			public void HandleError(IRemoteProtocolAgent agent, Exception ex)
 			{
-				Console.WriteLine(ex.ToString());
+				owner.logger.Log(LogLevel.Error, ProtocolErrorID, ex, "Error in protocol agent for server");
 			}
 
 			public void ScheduleReconnect(IRemoteProtocolAgent agent)
 			{
+				owner.logger.Log(LogLevel.Information, ConnectionLostID, "Connection to server lost");
 				owner.mainThreadDispatcher.DispatchTask(async () =>
 				{
 					await Task.Delay(owner.options.ServerReconnectionPrepareTimeout);
@@ -159,16 +209,20 @@ namespace StarComputer.Client
 					try { client.Connect(connectionPoint); }
 					catch (SocketException)
 					{
+						owner.logger.Log(LogLevel.Error, ClientRejoinFailID, "Failed to rejoin to server, connection terminated");
 						agent.Disconnect();
 						return;
 					}
 
 					agent.Reconnect(client);
+					owner.logger.Log(LogLevel.Error, ClientRejoinedID, "Client rejoined to server");
 				});
 			}
 
 			public void DispatchMessage(IRemoteProtocolAgent agent, ProtocolMessage message)
 			{
+				owner.logger.Log(LogLevel.Debug, MessageRecivedID, "New message recived from server\n\t{Message}", message);
+
 				owner.mainThreadDispatcher.DispatchTask(() =>
 				{
 					owner.messageHandler.HandleMessageAsync(message, agent);

@@ -369,7 +369,7 @@ namespace StarComputer.Server
 
 			public void DispatchMessage(IRemoteProtocolAgent agent, ProtocolMessage message)
 			{
-				owner.logger.Log(LogLevel.Debug, MessageRecivedID, "New message recived form client ({Login}[{IP}])\n\t{Message}", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint, message);
+				owner.logger.Log(LogLevel.Debug, MessageRecivedID, "New message recived from client ({Login}[{IP}])\n\t{Message}", owner.agents[agent].ConnectionInformation.Login, agent.CurrentEndPoint, message);
 
 				owner.mainThreadDispatcher.DispatchTask(() =>
 				{
