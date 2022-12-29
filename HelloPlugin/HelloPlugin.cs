@@ -2,6 +2,7 @@
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Commands;
 using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
+using StarComputer.Common.Abstractions.Plugins.Loading;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Server.Abstractions;
@@ -9,6 +10,7 @@ using System.Reflection;
 
 namespace HelloPlugin
 {
+	[Plugin]
 	public class HelloPlugin : IPlugin
 	{
 		private IProtocolEnvironment? protocol = null;
