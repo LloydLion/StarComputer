@@ -7,25 +7,27 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Server", "Star
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Client", "StarComputer.Client\StarComputer.Client.csproj", "{FF3EDB88-6AFC-42A0-AB1A-D086E0984089}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Client.Abstractions", "StarComputer.Client.Abstractions\StarComputer.Client.Abstractions.csproj", "{3CF04881-39E0-4D4C-815F-EFB390726C44}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Client.Abstractions", "StarComputer.Client.Abstractions\StarComputer.Client.Abstractions.csproj", "{3CF04881-39E0-4D4C-815F-EFB390726C44}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Server.Abstractions", "StarComputer.Server.Abstractions\StarComputer.Server.Abstractions.csproj", "{AEB62E03-5056-4D5F-873C-2ED1B1149C69}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Server.Abstractions", "StarComputer.Server.Abstractions\StarComputer.Server.Abstractions.csproj", "{AEB62E03-5056-4D5F-873C-2ED1B1149C69}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Common.Abstractions", "StarComputer.Common.Abstractions\StarComputer.Common.Abstractions.csproj", "{F831477C-848C-4E7A-93F2-11E662C94419}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Common.Abstractions", "StarComputer.Common.Abstractions\StarComputer.Common.Abstractions.csproj", "{F831477C-848C-4E7A-93F2-11E662C94419}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Server.UI.Console", "StarComputer.Server.UI.Console\StarComputer.Server.UI.Console.csproj", "{9DDAE44C-D037-414D-BDA0-163B242E57FE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Server.UI.Console", "StarComputer.Server.UI.Console\StarComputer.Server.UI.Console.csproj", "{9DDAE44C-D037-414D-BDA0-163B242E57FE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Client.UI.Console", "StarComputer.Client.UI.Console\StarComputer.Client.UI.Console.csproj", "{FC4F7A5A-A205-4997-AB84-E2FCB140E5A2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Client.UI.Console", "StarComputer.Client.UI.Console\StarComputer.Client.UI.Console.csproj", "{FC4F7A5A-A205-4997-AB84-E2FCB140E5A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.PluginDevelopmentKit", "StarComputer.PluginDevelopmentKit\StarComputer.PluginDevelopmentKit.csproj", "{5D18FCF5-E276-4DD7-9480-F9C0169F9024}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.PluginDevelopmentKit", "StarComputer.PluginDevelopmentKit\StarComputer.PluginDevelopmentKit.csproj", "{5D18FCF5-E276-4DD7-9480-F9C0169F9024}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Common", "StarComputer.Common\StarComputer.Common.csproj", "{FD10978F-A319-45E6-B48F-61DC7D11D096}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Common", "StarComputer.Common\StarComputer.Common.csproj", "{FD10978F-A319-45E6-B48F-61DC7D11D096}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.UI.Console", "StarComputer.UI.Console\StarComputer.UI.Console.csproj", "{27FB989A-0886-403A-9BBC-FCD4A419C14D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.UI.Console", "StarComputer.UI.Console\StarComputer.UI.Console.csproj", "{27FB989A-0886-403A-9BBC-FCD4A419C14D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{F7988CC0-E1CA-4241-B8FD-4143CFBF3D6D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HelloPlugin", "HelloPlugin\HelloPlugin.csproj", "{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloPlugin", "HelloPlugin\HelloPlugin.csproj", "{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Client.UI.Avalonia", "StarComputer.Client.UI.Avalonia\StarComputer.Client.UI.Avalonia.csproj", "{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -77,6 +79,10 @@ Global
 		{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

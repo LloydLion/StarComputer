@@ -40,6 +40,7 @@ namespace StarComputer.Client
 		private readonly ILogger<Client> logger;
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 		private readonly IBodyTypeResolver bodyTypeResolver;
+		private readonly ManualResetEvent onConnectionEvent = new(false);
 		private IRemoteProtocolAgent? serverAgent = null;
 		private ConnectionConfiguration? connectionConfiguration = null;
 
@@ -58,12 +59,33 @@ namespace StarComputer.Client
 		}
 
 
-		public void Connect(ConnectionConfiguration connectionConfiguration, IPluginStore plugins)
+		public void Connect(ConnectionConfiguration connectionConfiguration)
+		{
+			this.connectionConfiguration = connectionConfiguration;
+			onConnectionEvent.Set();
+		}
+
+		public ConnectionConfiguration GetConnectionConfiguration()
+		{
+			if (connectionConfiguration is null)
+				throw new InvalidOperationException("Connect to server before get agent");
+			return connectionConfiguration.Value;
+		}
+
+		public IRemoteProtocolAgent GetServerAgent()
+		{
+			if (serverAgent is null)
+				throw new InvalidOperationException("Connect to server before get agent");
+			return serverAgent;
+		}
+
+		public void MainLoop(IPluginStore plugins)
 		{
 			logger.Log(LogLevel.Information, ClientReadyID, "Client ready to connection to a server");
 
-			(IPEndPoint endPoint, string serverPassword, string login) = connectionConfiguration;
-			this.connectionConfiguration = connectionConfiguration;
+			onConnectionEvent.WaitOne();
+
+			(IPEndPoint endPoint, string serverPassword, string login) = connectionConfiguration!.Value;
 
 			var rawClient = new TcpClient();
 			rawClient.Connect(endPoint);
@@ -83,7 +105,7 @@ namespace StarComputer.Client
 
 				while (client.IsDataAvailable == false) Thread.Sleep(10);
 				var responce = client.ReadJson<ConnectionResponce>();
-			
+
 				if (responce.DebugMessage is not null)
 					logger.Log(LogLevel.Debug, DebugMessageFromServerID, "Debug message from server: {DebugMessage}", responce.DebugMessage);
 
@@ -108,7 +130,7 @@ namespace StarComputer.Client
 			try
 			{
 				var endpoint = new IPEndPoint(endPoint.Address, port);
-	
+
 				rawClient = new TcpClient();
 				rawClient.Connect(endpoint);
 
@@ -119,7 +141,7 @@ namespace StarComputer.Client
 				serverAgent.Start();
 
 				logger.Log(LogLevel.Information, ClientJoinedID, "Joined to {ServerEndPoint} as ({Login}[{LocalIP}])",
-					endPoint, connectionConfiguration.Login, (IPEndPoint)rawClient.Client.LocalEndPoint!);
+					endPoint, login, (IPEndPoint)rawClient.Client.LocalEndPoint!);
 			}
 			catch (Exception ex)
 			{
@@ -156,20 +178,6 @@ namespace StarComputer.Client
 					return;
 				}
 			}
-		}
-
-		public ConnectionConfiguration GetConnectionConfiguration()
-		{
-			if (connectionConfiguration is null)
-				throw new InvalidOperationException("Connect to server before get agent");
-			return connectionConfiguration.Value;
-		}
-
-		public IRemoteProtocolAgent GetServerAgent()
-		{
-			if (serverAgent is null)
-				throw new InvalidOperationException("Connect to server before get agent");
-			return serverAgent;
 		}
 
 

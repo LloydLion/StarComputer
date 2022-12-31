@@ -1,0 +1,26 @@
+﻿{
+	"Client":
+	{
+		
+	},
+
+	"Connection":
+	{
+		"IP": "127.0.0.1",
+		"Port": 623,
+		"Password": "DEBUG PASSWORD"
+	},
+
+	"Logging":
+	{
+		"MinLevel": "None"
+	},
+
+	"PluginLoading":
+	{
+		"Reflection":
+		{
+			"PluginDirectories": "plugins"
+		}
+	}
+}
