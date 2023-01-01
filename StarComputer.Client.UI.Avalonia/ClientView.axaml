@@ -19,9 +19,10 @@
 			<TextBox Text="{Binding ServerPassword}" Watermark="Server password" Margin="10" MaxWidth="240"/>
 			<TextBox Text="{Binding Login}" Watermark="Login" Margin="10" MaxWidth="240"/>
       <Button x:Name="connectButton" Content="Connect" HorizontalAlignment="Center" MaxWidth="240" MinWidth="100" HorizontalContentAlignment="Center"/>
+      <TextBlock Text="{Binding ConnectionErrorMessage}" TextWrapping="Wrap" Margin="10" Foreground="Red"/>
     </StackPanel>
 
-    <Grid Grid.Column="1" Grid.Row="0">
+    <Grid Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsConnected}">
       <Grid.RowDefinitions>
         <RowDefinition Height="*"/>
         <RowDefinition Height="auto"/>

@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using System;
+using System.Threading.Tasks;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -20,23 +21,26 @@ namespace StarComputer.Client.UI.Avalonia
 
 		private void OnViewInitialized(object? sender, EventArgs e)
 		{
-			connectButton.Click += OnConnectButtonClick;
-			sendButton.Click += OnSendButtonClick;
-
-			connectButton.IsEnabled = Context.CanConnect;
-			Context.PropertyChanged += (_, e) =>
+			if (Design.IsDesignMode == false)
 			{
-				if (e.PropertyName == nameof(ClientViewModel.CanConnect))
-					connectButton.IsEnabled = Context.CanConnect;
-			};
+				connectButton.Click += OnConnectButtonClick;
+				sendButton.Click += OnSendButtonClick;
 
-			lineInput.PropertyChanged += (_, e) =>
-			{
-				if (e.Property == TextBox.TextProperty)
-					sendButton.IsEnabled = string.IsNullOrWhiteSpace(lineInput.Text) == false;
-			};
+				connectButton.IsEnabled = Context.CanConnect;
+				Context.PropertyChanged += (_, e) =>
+				{
+					if (e.PropertyName == nameof(ClientViewModel.CanConnect))
+						connectButton.IsEnabled = Context.CanConnect;
+				};
 
-			lineInput.KeyDown += OnLineInputKeyDown;
+				lineInput.PropertyChanged += (_, e) =>
+				{
+					if (e.Property == TextBox.TextProperty)
+						sendButton.IsEnabled = string.IsNullOrWhiteSpace(lineInput.Text) == false;
+				};
+
+				lineInput.KeyDown += OnLineInputKeyDown;
+			}
 		}
 
 		private void OnLineInputKeyDown(object? sender, KeyEventArgs e)
@@ -56,9 +60,16 @@ namespace StarComputer.Client.UI.Avalonia
 			lineInput.Text = "";
 		}
 
-		private void OnConnectButtonClick(object? sender, RoutedEventArgs e)
+		private async void OnConnectButtonClick(object? sender, RoutedEventArgs e)
 		{
-			Context.ConnectToServer();
+			await ConnectToServer();
+		}
+
+		private async ValueTask ConnectToServer()
+		{
+			IsEnabled = false;
+			await Context.ConnectToServerAsync();
+			IsEnabled = true;
 		}
 	}
 }

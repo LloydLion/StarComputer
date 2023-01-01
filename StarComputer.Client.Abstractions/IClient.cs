@@ -1,17 +1,24 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Protocol;
-using System.Net;
 
 namespace StarComputer.Client.Abstractions
 {
 	public interface IClient
 	{
-		public void Connect(ConnectionConfiguration connectionConfiguration);
+		public bool IsConnected { get; }
+
+
+		public event Action ConnectionStatusChanged;
+
+
+		public ValueTask ConnectAsync(ConnectionConfiguration connectionConfiguration);
 
 		public IRemoteProtocolAgent GetServerAgent();
 
 		public ConnectionConfiguration GetConnectionConfiguration();
 
-		void MainLoop(IPluginStore plugins);
+		public void Close();
+
+		public void MainLoop(IPluginStore plugins);
 	}
 }

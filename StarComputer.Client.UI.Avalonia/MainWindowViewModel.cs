@@ -4,12 +4,12 @@ namespace StarComputer.Client.UI.Avalonia
 {
 	public class MainWindowViewModel : ViewModelBase
 	{
-		private readonly IClient? client;
+		private readonly IClient client;
 
 
-		public MainWindowViewModel(IClient? client = null, AvaloniaBasedConsoleUIContext? uIContext = null)
+		public MainWindowViewModel(IClient client, AvaloniaBasedConsoleUIContext uiContext)
 		{
-			Content = new ClientViewModel(client, uIContext);
+			Content = new ClientViewModel(client, uiContext);
 			this.client = client;
 		}
 
@@ -19,7 +19,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public void Close()
 		{
-			client?.GetServerAgent()?.Disconnect();
+			client.GetServerAgent().Disconnect();
 		}
 	}
 }

@@ -35,8 +35,11 @@ namespace StarComputer.Client.UI.Avalonia
 
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 				{
-					var window = new MainWindow();
-					window.Initialize(new MainWindowViewModel());
+					var window = new MainWindow
+					{
+						Content = new ClientView()
+					};
+					//window.Initialize(new MainWindowViewModel());
 					desktop.MainWindow = window;
 				}
 			}
