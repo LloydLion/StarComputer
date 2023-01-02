@@ -1,4 +1,5 @@
-﻿using StarComputer.Client.Abstractions;
+﻿using Microsoft.Extensions.Options;
+using StarComputer.Client.Abstractions;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -7,9 +8,9 @@ namespace StarComputer.Client.UI.Avalonia
 		private readonly IClient client;
 
 
-		public MainWindowViewModel(IClient client, AvaloniaBasedConsoleUIContext uiContext)
+		public MainWindowViewModel(IClient client, AvaloniaBasedConsoleUIContext uiContext, IOptions<ClientViewModel.Options> clientViewOptions)
 		{
-			Content = new ClientViewModel(client, uiContext);
+			Content = new ClientViewModel(client, uiContext, clientViewOptions);
 			this.client = client;
 		}
 
@@ -19,7 +20,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public void Close()
 		{
-			client.GetServerAgent().Disconnect();
+			client.Close();
 		}
 	}
 }

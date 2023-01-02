@@ -23,6 +23,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using ReactiveUI;
+using System.Net;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -53,6 +54,20 @@ namespace StarComputer.Client.UI.Avalonia
 				.Configure<ReflectionPluginLoader.Options>(s =>
 				{
 					s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
+				})
+				.Configure<ClientViewModel.Options>(s =>
+				{
+					var configSection = config.GetSection("Connection");
+					s.IsConnectionDataLocked = configSection.GetValue<bool>("Locked");
+					s.IsConnectionLoginLocked = configSection.GetValue<bool>("LoginLocked");
+
+					s.InitialConnectionInformation = new(new IPEndPoint(
+						IPAddress.Parse(
+							configSection.GetValue<string>("IP")!),
+							configSection.GetValue<int>("Port")
+						),
+						configSection.GetValue<string>("Password")!,
+						configSection.GetValue<string>("Login")!);
 				})
 
 				.AddSingleton<IClient, Client>()

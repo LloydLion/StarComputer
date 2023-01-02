@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using StarComputer.Client.Abstractions;
 using System.Threading;
+using Microsoft.Extensions.Options;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -35,11 +36,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 				{
-					var window = new MainWindow
-					{
-						Content = new ClientView()
-					};
-					//window.Initialize(new MainWindowViewModel());
+					var window = new MainWindow { Content = new ClientView() };
 					desktop.MainWindow = window;
 				}
 			}
@@ -53,7 +50,10 @@ namespace StarComputer.Client.UI.Avalonia
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 				{
 					var window = new MainWindow();
-					window.Initialize(new MainWindowViewModel(services.GetRequiredService<IClient>(), services.GetRequiredService<AvaloniaBasedConsoleUIContext>()));
+					window.Initialize(new MainWindowViewModel(
+						services.GetRequiredService<IClient>(),
+						services.GetRequiredService<AvaloniaBasedConsoleUIContext>(),
+						services.GetRequiredService<IOptions<ClientViewModel.Options>>()));
 					desktop.MainWindow = window;
 				}
 			}

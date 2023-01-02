@@ -212,8 +212,9 @@ namespace StarComputer.Client
 							}
 						}
 					}
-					else //0
+					else //0 or ThreadDispatcherStatic.ClosedIndex
 					{
+						//IsConnected already setted to false from agent worker
 						logger.Log(LogLevel.Information, CloseSignalRecivedID, "Connection closing by internal command");
 						serverAgent = null;
 						connectionConfiguration = null;
@@ -241,6 +242,8 @@ namespace StarComputer.Client
 			public void HandleDisconnect(IRemoteProtocolAgent agent)
 			{
 				owner.logger.Log(LogLevel.Information, DisconnectedID, "Disconnection from server, session end");
+				owner.onServerDisconnected.Set();
+				owner.IsConnected = false;
 			}
 
 			public void HandleError(IRemoteProtocolAgent agent, Exception ex)

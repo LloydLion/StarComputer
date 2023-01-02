@@ -15,32 +15,39 @@ namespace StarComputer.Client.UI.Avalonia
 		{
 			InitializeComponent();
 
-			Initialized += OnViewInitialized;
+			if (Design.IsDesignMode == false)
+				Initialized += OnViewInitialized;
 		}
 
 
 		private void OnViewInitialized(object? sender, EventArgs e)
 		{
-			if (Design.IsDesignMode == false)
+			connectButton.Click += OnConnectButtonClick;
+			sendButton.Click += OnSendButtonClick;
+			disconnectButton.Click += OnDisconnectButtonClick;
+
+			connectButton.IsEnabled = Context.CanConnect;
+			disconnectButton.IsEnabled = Context.IsConnected;
+			Context.PropertyChanged += (_, e) =>
 			{
-				connectButton.Click += OnConnectButtonClick;
-				sendButton.Click += OnSendButtonClick;
+				if (e.PropertyName == nameof(ClientViewModel.CanConnect))
+					connectButton.IsEnabled = Context.CanConnect;
+				if (e.PropertyName == nameof(ClientViewModel.IsConnected))
+					disconnectButton.IsEnabled = Context.IsConnected;
+			};
 
-				connectButton.IsEnabled = Context.CanConnect;
-				Context.PropertyChanged += (_, e) =>
-				{
-					if (e.PropertyName == nameof(ClientViewModel.CanConnect))
-						connectButton.IsEnabled = Context.CanConnect;
-				};
+			lineInput.PropertyChanged += (_, e) =>
+			{
+				if (e.Property == TextBox.TextProperty)
+					sendButton.IsEnabled = string.IsNullOrWhiteSpace(lineInput.Text) == false;
+			};
 
-				lineInput.PropertyChanged += (_, e) =>
-				{
-					if (e.Property == TextBox.TextProperty)
-						sendButton.IsEnabled = string.IsNullOrWhiteSpace(lineInput.Text) == false;
-				};
+			lineInput.KeyDown += OnLineInputKeyDown;
+		}
 
-				lineInput.KeyDown += OnLineInputKeyDown;
-			}
+		private void OnDisconnectButtonClick(object? sender, RoutedEventArgs e)
+		{
+			Context.Disconnect();
 		}
 
 		private void OnLineInputKeyDown(object? sender, KeyEventArgs e)
@@ -49,7 +56,7 @@ namespace StarComputer.Client.UI.Avalonia
 			{
 				var line = lineInput.Text;
 				Context.SendLine(line);
-				lineInput.Text = "";
+				lineInput.Text = string.Empty;
 			}			
 		}
 
@@ -57,7 +64,7 @@ namespace StarComputer.Client.UI.Avalonia
 		{
 			var line = lineInput.Text;
 			Context.SendLine(line);
-			lineInput.Text = "";
+			lineInput.Text = string.Empty;
 		}
 
 		private async void OnConnectButtonClick(object? sender, RoutedEventArgs e)

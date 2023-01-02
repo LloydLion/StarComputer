@@ -15,10 +15,13 @@
 
     <StackPanel Grid.Column="0" Grid.Row="0">
 			<Label Content="Connection" HorizontalAlignment="Center" FontWeight="SemiBold" FontSize="25"/>
-			<TextBox Text="{Binding ConnectionEndPoint}" Watermark="Endpoint" Margin="10" MaxWidth="240"/>
-			<TextBox Text="{Binding ServerPassword}" Watermark="Server password" Margin="10" MaxWidth="240"/>
-			<TextBox Text="{Binding Login}" Watermark="Login" Margin="10" MaxWidth="240"/>
-      <Button x:Name="connectButton" Content="Connect" HorizontalAlignment="Center" MaxWidth="240" MinWidth="100" HorizontalContentAlignment="Center"/>
+			<TextBox IsEnabled="{Binding IsConnectionDataChangable}" Text="{Binding ConnectionEndPoint}" Watermark="Endpoint" Margin="10" MaxWidth="240"/>
+			<TextBox IsEnabled="{Binding IsConnectionDataChangable}" Text="{Binding ServerPassword}" Watermark="Server password" Margin="10" MaxWidth="240"/>
+			<TextBox IsEnabled="{Binding IsConnectionLoginChangable}" Text="{Binding Login}" Watermark="Login" Margin="10" MaxWidth="240"/>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="10">
+        <Button x:Name="connectButton" Content="Connect" HorizontalAlignment="Center" MaxWidth="240" MinWidth="100" HorizontalContentAlignment="Center"/>
+        <Button x:Name="disconnectButton" Content="Disconnect" HorizontalAlignment="Center" MaxWidth="240" MinWidth="100" HorizontalContentAlignment="Center"/>
+      </StackPanel>
       <TextBlock Text="{Binding ConnectionErrorMessage}" TextWrapping="Wrap" Margin="10" Foreground="Red"/>
     </StackPanel>
 

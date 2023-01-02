@@ -6,9 +6,12 @@
 
 	"Connection":
 	{
+		"Locked": true,
+		"LoginLocked": true,
 		"IP": "127.0.0.1",
 		"Port": 623,
-		"Password": "DEBUG PASSWORD"
+		"Password": "DEBUG PASSWORD",
+		"Login": "Some login 1"
 	},
 
 	"Logging":

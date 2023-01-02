@@ -1,4 +1,5 @@
 ﻿using Avalonia.Threading;
+using Microsoft.Extensions.Options;
 using StarComputer.Client.Abstractions;
 using System;
 using System.Net;
@@ -17,9 +18,11 @@ namespace StarComputer.Client.UI.Avalonia
 		private bool canConnect = false;
 		private bool isValidConnectionEndPoint = false;
 		private string errorMessage = "";
+		private bool isConnectionLoginChangable;
+		private bool isConnectionDataChangable;
 
 
-		public ClientViewModel(IClient client, AvaloniaBasedConsoleUIContext uiContext)
+		public ClientViewModel(IClient client, AvaloniaBasedConsoleUIContext uiContext, IOptions<Options> options)
 		{
 			PropertyChanged += (sender, e) =>
 			{
@@ -33,6 +36,12 @@ namespace StarComputer.Client.UI.Avalonia
 						string.IsNullOrWhiteSpace(ServerPassword) == false &&
 						string.IsNullOrWhiteSpace(ConnectionEndPoint) == false &&
 						IsValidConnectionEndPoint;
+
+				if (e.PropertyName == nameof(IsConnected))
+				{
+					IsConnectionDataChangable = !IsConnected && !options.Value.IsConnectionDataLocked;
+					IsConnectionLoginChangable = !IsConnected && !options.Value.IsConnectionLoginLocked;
+				}
 			};
 
 			uiContext.PropertyChanged += (sender, e) =>
@@ -45,12 +54,22 @@ namespace StarComputer.Client.UI.Avalonia
 
 			this.client = client;
 			this.uiContext = uiContext;
+
+			IsConnectionDataChangable = !options.Value.IsConnectionDataLocked;
+			IsConnectionLoginChangable = !options.Value.IsConnectionLoginLocked;
+			if (options.Value.InitialConnectionInformation is not null)
+			{
+				var initialData = options.Value.InitialConnectionInformation.Value;
+				ConnectionEndPoint = initialData.EndPoint.ToString();
+				Login = initialData.Login;
+				ServerPassword = initialData.ServerPassword;
+			}
 		}
 
 
 		public string? ConnectionEndPoint { get => connectionEndPoint; set => RaiseAndSetIfChanged(ref connectionEndPoint, value); }
 
-		public bool IsValidConnectionEndPoint { get => isValidConnectionEndPoint; set => RaiseAndSetIfChanged(ref isValidConnectionEndPoint, value); }
+		public bool IsValidConnectionEndPoint { get => isValidConnectionEndPoint; private set => RaiseAndSetIfChanged(ref isValidConnectionEndPoint, value); }
 
 		public string? Login { get => login; set => RaiseAndSetIfChanged(ref login, value); }
 
@@ -60,9 +79,13 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public string OutputContent => uiContext.OutputContent;
 
-		public string ConnectionErrorMessage { get => errorMessage; set => RaiseAndSetIfChanged(ref errorMessage, value); }
+		public string ConnectionErrorMessage { get => errorMessage; private set => RaiseAndSetIfChanged(ref errorMessage, value); }
 
 		public bool IsConnected => client.IsConnected;
+
+		public bool IsConnectionDataChangable { get => isConnectionDataChangable; private set => RaiseAndSetIfChanged(ref isConnectionDataChangable, value); }
+
+		public bool IsConnectionLoginChangable { get => isConnectionLoginChangable; private set => RaiseAndSetIfChanged(ref isConnectionLoginChangable, value); }
 
 
 		public async ValueTask ConnectToServerAsync()
@@ -84,9 +107,24 @@ namespace StarComputer.Client.UI.Avalonia
 			}
 		}
 
+		public void Disconnect()
+		{
+			client.GetServerAgent().Disconnect();
+		}
+
 		public void SendLine(string line)
 		{
 			uiContext.SendNewLine(line);
+		}
+
+
+		public class Options
+		{
+			public bool IsConnectionDataLocked { get; set; }
+
+			public bool IsConnectionLoginLocked { get; set; }
+
+			public ConnectionConfiguration? InitialConnectionInformation { get; set; }
 		}
 	}
 }
