@@ -1,5 +1,5 @@
 ﻿using Avalonia.Controls;
-using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
+using StarComputer.Common.Abstractions.Plugins.UI.Console;
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;

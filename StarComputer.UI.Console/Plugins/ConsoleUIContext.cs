@@ -1,4 +1,4 @@
-﻿using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
+﻿using StarComputer.Common.Abstractions.Plugins.UI.Console;
 using StarComputer.Common.Abstractions.Threading;
 using System.Text;
 using SConsole = System.Console;

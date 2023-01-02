@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj" />
     <ProjectReference Include="..\StarComputer.PluginDevelopmentKit\StarComputer.PluginDevelopmentKit.csproj" />
   </ItemGroup>
 

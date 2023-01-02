@@ -7,7 +7,7 @@ using StarComputer.Client;
 using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Commands;
-using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
+using StarComputer.Common.Abstractions.Plugins.UI.Console;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Plugins.Commands;
 using StarComputer.Common.Abstractions.Utils.Logging;

@@ -27,7 +27,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Plugins", "Plugins", "{F798
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloPlugin", "HelloPlugin\HelloPlugin.csproj", "{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Client.UI.Avalonia", "StarComputer.Client.UI.Avalonia\StarComputer.Client.UI.Avalonia.csproj", "{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Client.UI.Avalonia", "StarComputer.Client.UI.Avalonia\StarComputer.Client.UI.Avalonia.csproj", "{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Common.Abstractions.Plugins.UI.Console", "StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj", "{1ED76399-C8B4-4AEE-ADAD-DF42A29EF449}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Common.Abstractions.Plugins.UI.HTML", "StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj", "{E5A2ECAE-4654-449C-9D22-9FB482012CBF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -83,6 +87,14 @@ Global
 		{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1ED76399-C8B4-4AEE-ADAD-DF42A29EF449}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1ED76399-C8B4-4AEE-ADAD-DF42A29EF449}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1ED76399-C8B4-4AEE-ADAD-DF42A29EF449}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1ED76399-C8B4-4AEE-ADAD-DF42A29EF449}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E5A2ECAE-4654-449C-9D22-9FB482012CBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5A2ECAE-4654-449C-9D22-9FB482012CBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5A2ECAE-4654-449C-9D22-9FB482012CBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5A2ECAE-4654-449C-9D22-9FB482012CBF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

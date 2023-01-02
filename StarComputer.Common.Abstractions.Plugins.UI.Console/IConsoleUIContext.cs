@@ -1,4 +1,4 @@
-﻿namespace StarComputer.Common.Abstractions.Plugins.ConsoleUI
+﻿namespace StarComputer.Common.Abstractions.Plugins.UI.Console
 {
 	public interface IConsoleUIContext : IUIContext
 	{

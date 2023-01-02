@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StarComputer.Client\StarComputer.Client.csproj" />
+    <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -5,7 +5,7 @@ using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Commands;
-using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
+using StarComputer.Common.Abstractions.Plugins.UI.Console;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Plugins.Commands;
 using StarComputer.Common.Abstractions.Utils.Logging;
@@ -82,4 +82,5 @@ var login = Console.ReadLine()!;
 var connectionConfig = config.GetSection("Connection");
 (var ip, var port, var password) = (connectionConfig.GetValue<string>("IP"), connectionConfig.GetValue<int>("Port"), connectionConfig.GetValue<string>("Password"));
 
-client.Connect(new ConnectionConfiguration(new(IPAddress.Parse(ip!), port), password!, login), plugins);
+client.ConnectAsync(new ConnectionConfiguration(new(IPAddress.Parse(ip!), port), password!, login)).AsTask().Equals(null);
+client.MainLoop(plugins);

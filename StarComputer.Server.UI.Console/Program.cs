@@ -6,7 +6,7 @@ using StarComputer.Server.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Server.DebugEnv;
-using StarComputer.Common.Abstractions.Plugins.ConsoleUI;
+using StarComputer.Common.Abstractions.Plugins.UI.Console;
 using StarComputer.UI.Console.Plugins;
 using StarComputer.Common.Plugins.Commands;
 using StarComputer.Common.Abstractions.Plugins.Commands;
