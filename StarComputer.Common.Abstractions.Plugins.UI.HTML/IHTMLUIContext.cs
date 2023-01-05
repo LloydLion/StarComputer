@@ -7,7 +7,5 @@
 		public void UseHTMLPageConstructor(IHTMLPageConstructor? pageConstructor);
 
 		public void SetJSPluginContext(object contextObject);
-
-		public void StartJSExecution();
 	}
 }

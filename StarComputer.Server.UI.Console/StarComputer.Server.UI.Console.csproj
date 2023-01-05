@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <BaseOutputPath>..\build\Server.UI.Console</BaseOutputPath>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj" />
     <ProjectReference Include="..\StarComputer.Server\StarComputer.Server.csproj" />
     <ProjectReference Include="..\StarComputer.UI.Console\StarComputer.UI.Console.csproj" />
   </ItemGroup>

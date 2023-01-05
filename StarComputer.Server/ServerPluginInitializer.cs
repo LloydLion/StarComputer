@@ -26,7 +26,7 @@ namespace StarComputer.Server
 		{
 			foreach (var plugin in plugins)
 			{
-				if (plugin.TargetUIContextType.IsAssignableFrom(typeof(TUI)))
+				if (plugin.TargetUIContextTypes.Any(s => s.IsAssignableFrom(typeof(TUI))))
 				{
 					resolverBuilder.SetupDomain(plugin.Domain);
 					commandsBuilder.BeginPluginInitalize(plugin);

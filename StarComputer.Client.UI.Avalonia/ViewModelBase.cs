@@ -1,10 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace StarComputer.Client.UI.Avalonia
 {
-	public class ViewModelBase : INotifyPropertyChanged
+	public class ViewModelBase : INotifyPropertyChanged, IDisposable
 	{
 		public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -23,5 +24,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 		protected void RaisePropertyChanged([CallerMemberName] string propertyName = "Name of caller member")
 			=> PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+		public virtual void Dispose() { }
 	}
 }

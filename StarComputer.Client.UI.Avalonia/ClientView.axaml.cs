@@ -23,7 +23,7 @@ namespace StarComputer.Client.UI.Avalonia
 		private void OnViewInitialized(object? sender, EventArgs e)
 		{
 			connectButton.Click += OnConnectButtonClick;
-			sendButton.Click += OnSendButtonClick;
+			//sendButton.Click += OnSendButtonClick;
 			disconnectButton.Click += OnDisconnectButtonClick;
 
 			connectButton.IsEnabled = Context.CanConnect;
@@ -36,13 +36,23 @@ namespace StarComputer.Client.UI.Avalonia
 					disconnectButton.IsEnabled = Context.IsConnected;
 			};
 
-			lineInput.PropertyChanged += (_, e) =>
+			pluginSelector.Items = Context.Plugins;
+			pluginSelector.SelectionChanged += (_, e) =>
 			{
-				if (e.Property == TextBox.TextProperty)
-					sendButton.IsEnabled = string.IsNullOrWhiteSpace(lineInput.Text) == false;
+				if (e.AddedItems.Count == 1)
+				{
+					var plugin = e.AddedItems[0];
+					Context.SwitchPlugin(plugin);
+				}
 			};
 
-			lineInput.KeyDown += OnLineInputKeyDown;
+			//lineInput.PropertyChanged += (_, e) =>
+			//{
+			//	if (e.Property == TextBox.TextProperty)
+			//		sendButton.IsEnabled = string.IsNullOrWhiteSpace(lineInput.Text) == false;
+			//};
+
+			//lineInput.KeyDown += OnLineInputKeyDown;
 		}
 
 		private void OnDisconnectButtonClick(object? sender, RoutedEventArgs e)
@@ -50,22 +60,22 @@ namespace StarComputer.Client.UI.Avalonia
 			Context.Disconnect();
 		}
 
-		private void OnLineInputKeyDown(object? sender, KeyEventArgs e)
-		{
-			if (e.Key == Key.Enter)
-			{
-				var line = lineInput.Text;
-				Context.SendLine(line);
-				lineInput.Text = string.Empty;
-			}			
-		}
+		//private void OnLineInputKeyDown(object? sender, KeyEventArgs e)
+		//{
+		//	if (e.Key == Key.Enter)
+		//	{
+		//		var line = lineInput.Text;
+		//		Context.SendLine(line);
+		//		lineInput.Text = string.Empty;
+		//	}			
+		//}
 
-		private void OnSendButtonClick(object? sender, RoutedEventArgs e)
-		{
-			var line = lineInput.Text;
-			Context.SendLine(line);
-			lineInput.Text = string.Empty;
-		}
+		//private void OnSendButtonClick(object? sender, RoutedEventArgs e)
+		//{
+		//	var line = lineInput.Text;
+		//	Context.SendLine(line);
+		//	lineInput.Text = string.Empty;
+		//}
 
 		private async void OnConnectButtonClick(object? sender, RoutedEventArgs e)
 		{

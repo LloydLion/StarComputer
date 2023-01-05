@@ -23,7 +23,7 @@
 	{
 		"Reflection":
 		{
-			"PluginDirectories": "../../../plugins;../../../plugins-dev"
+			"PluginDirectories": "../../../../plugins;../../../../plugins-dev"
 		}
 	}
 }

@@ -1,7 +1,10 @@
 ﻿using Avalonia.Threading;
 using Microsoft.Extensions.Options;
 using StarComputer.Client.Abstractions;
+using StarComputer.Common.Abstractions.Plugins;
 using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -10,7 +13,7 @@ namespace StarComputer.Client.UI.Avalonia
 	public class ClientViewModel : ViewModelBase
 	{
 		private readonly IClient client;
-		private readonly AvaloniaBasedConsoleUIContext uiContext;
+		private readonly HTMLUIManager uiManager;
 		private IPEndPoint? parsedConnectionEndPoint;
 		private string? connectionEndPoint;
 		private string? login;
@@ -22,7 +25,7 @@ namespace StarComputer.Client.UI.Avalonia
 		private bool isConnectionDataChangable;
 
 
-		public ClientViewModel(IClient client, AvaloniaBasedConsoleUIContext uiContext, IOptions<Options> options)
+		public ClientViewModel(IClient client, IOptions<Options> options, HTMLUIManager uiManager, IPluginStore plugins, BrowserViewModel browser)
 		{
 			PropertyChanged += (sender, e) =>
 			{
@@ -44,16 +47,10 @@ namespace StarComputer.Client.UI.Avalonia
 				}
 			};
 
-			uiContext.PropertyChanged += (sender, e) =>
-			{
-				if (e.PropertyName == nameof(AvaloniaBasedConsoleUIContext.OutputContent))
-					RaisePropertyChanged(nameof(OutputContent));
-			};
-
 			client.ConnectionStatusChanged += () => Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(IsConnected)), DispatcherPriority.Send);
 
 			this.client = client;
-			this.uiContext = uiContext;
+			Browser = browser;
 
 			IsConnectionDataChangable = !options.Value.IsConnectionDataLocked;
 			IsConnectionLoginChangable = !options.Value.IsConnectionLoginLocked;
@@ -64,6 +61,9 @@ namespace StarComputer.Client.UI.Avalonia
 				Login = initialData.Login;
 				ServerPassword = initialData.ServerPassword;
 			}
+
+			Plugins = plugins.Select(s => new VisualPlugin(s.Value));
+			this.uiManager = uiManager;
 		}
 
 
@@ -77,8 +77,6 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public bool CanConnect { get => canConnect; private set => RaiseAndSetIfChanged(ref canConnect, value); }
 
-		public string OutputContent => uiContext.OutputContent;
-
 		public string ConnectionErrorMessage { get => errorMessage; private set => RaiseAndSetIfChanged(ref errorMessage, value); }
 
 		public bool IsConnected => client.IsConnected;
@@ -86,6 +84,10 @@ namespace StarComputer.Client.UI.Avalonia
 		public bool IsConnectionDataChangable { get => isConnectionDataChangable; private set => RaiseAndSetIfChanged(ref isConnectionDataChangable, value); }
 
 		public bool IsConnectionLoginChangable { get => isConnectionLoginChangable; private set => RaiseAndSetIfChanged(ref isConnectionLoginChangable, value); }
+
+		public IEnumerable<object> Plugins { get; }
+
+		public BrowserViewModel Browser { get; }
 
 
 		public async ValueTask ConnectToServerAsync()
@@ -112,9 +114,13 @@ namespace StarComputer.Client.UI.Avalonia
 			client.GetServerAgent().Disconnect();
 		}
 
-		public void SendLine(string line)
+		public void SwitchPlugin(object? plugin)
 		{
-			uiContext.SendNewLine(line);
+			if (plugin is VisualPlugin vp)
+			{
+				uiManager.SwitchPlugin(vp.Plugin);
+			}
+			else throw new ArgumentException("Invalid type of plugin", nameof(plugin));
 		}
 
 
@@ -125,6 +131,14 @@ namespace StarComputer.Client.UI.Avalonia
 			public bool IsConnectionLoginLocked { get; set; }
 
 			public ConnectionConfiguration? InitialConnectionInformation { get; set; }
+		}
+
+		private record VisualPlugin(IPlugin Plugin)
+		{
+			public override string ToString()
+			{
+				return $"{Plugin.Domain} [{Plugin.GetType().FullName}|{Plugin.Version}]";
+			}
 		}
 	}
 }

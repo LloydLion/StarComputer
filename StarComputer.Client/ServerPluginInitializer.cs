@@ -10,10 +10,10 @@ namespace StarComputer.Client
 		private readonly IClient client;
 		private readonly ICommandRepositoryBuilder commandsBuilder;
 		private readonly IBodyTypeResolverBuilder resolverBuilder;
-		private readonly TUI ui;
+		private readonly IUIContextFactory<TUI> ui;
 
 
-		public ClientPluginInitializer(IClient client, ICommandRepositoryBuilder commandsBuilder, IBodyTypeResolverBuilder resolverBuilder, TUI ui)
+		public ClientPluginInitializer(IClient client, ICommandRepositoryBuilder commandsBuilder, IBodyTypeResolverBuilder resolverBuilder, IUIContextFactory<TUI> ui)
 		{
 			this.client = client;
 			this.commandsBuilder = commandsBuilder;
@@ -26,12 +26,12 @@ namespace StarComputer.Client
 		{
 			foreach (var plugin in plugins)
 			{
-				if (plugin.TargetUIContextType.IsAssignableFrom(typeof(TUI)))
+				if (plugin.TargetUIContextTypes.Any(s => s.IsAssignableFrom(typeof(TUI))))
 				{
 					resolverBuilder.SetupDomain(plugin.Domain);
 					commandsBuilder.BeginPluginInitalize(plugin);
 
-					plugin.InitializeAndBuild(new ClientProtocolEnvironment(client), ui, commandsBuilder, resolverBuilder);
+					plugin.InitializeAndBuild(new ClientProtocolEnvironment(client), ui.CreateContext(plugin), commandsBuilder, resolverBuilder);
 
 					commandsBuilder.EndPluginInitalize();
 				}

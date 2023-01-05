@@ -7,6 +7,7 @@ using System;
 using StarComputer.Client.Abstractions;
 using System.Threading;
 using Microsoft.Extensions.Options;
+using StarComputer.Common.Abstractions.Plugins;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -36,7 +37,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 				{
-					var window = new MainWindow { Content = new ClientView() };
+					var window = new MainWindow();
 					desktop.MainWindow = window;
 				}
 			}
@@ -52,8 +53,11 @@ namespace StarComputer.Client.UI.Avalonia
 					var window = new MainWindow();
 					window.Initialize(new MainWindowViewModel(
 						services.GetRequiredService<IClient>(),
-						services.GetRequiredService<AvaloniaBasedConsoleUIContext>(),
-						services.GetRequiredService<IOptions<ClientViewModel.Options>>()));
+						services.GetRequiredService<IOptions<ClientViewModel.Options>>(),
+						services.GetRequiredService<IPluginStore>(),
+						services.GetRequiredService<HTMLUIManager>()
+					));
+
 					desktop.MainWindow = window;
 				}
 			}

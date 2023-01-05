@@ -8,7 +8,7 @@ namespace StarComputer.Common.Abstractions.Plugins
 	{
 		public string Domain { get; }
 
-		public Type TargetUIContextType { get; }
+		public IReadOnlyCollection<Type> TargetUIContextTypes { get; }
 
 		public Version Version { get; }
 

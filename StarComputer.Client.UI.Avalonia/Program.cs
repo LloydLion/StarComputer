@@ -24,20 +24,19 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using ReactiveUI;
 using System.Net;
+using StarComputer.Common.Abstractions.Plugins.UI.HTML;
+using System.Linq;
 
 namespace StarComputer.Client.UI.Avalonia
 {
 	public static class Program
 	{
 		private static IServiceProvider? services;
-		private static string[]? args;
 
 
 		[STAThread]
 		public static void Main(string[] args)
 		{
-			Program.args = args;
-
 			var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile(
 #if DEBUG
 			"config-dev.json"
@@ -73,8 +72,7 @@ namespace StarComputer.Client.UI.Avalonia
 				.AddSingleton<IClient, Client>()
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
-				.AddSingleton<IConsoleUIContext>(sp => sp.GetRequiredService<AvaloniaBasedConsoleUIContext>())
-				.AddSingleton<AvaloniaBasedConsoleUIContext>()
+				.AddSingleton<HTMLUIManager>()
 
 				.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 
@@ -88,6 +86,26 @@ namespace StarComputer.Client.UI.Avalonia
 				.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddFancyLogging())
 
 				.BuildServiceProvider();
+
+
+			var lservices = services!;
+			var client = lservices.GetRequiredService<IClient>();
+			var uiManager = lservices.GetRequiredService<HTMLUIManager>();
+
+			SynchronizationContext.SetSynchronizationContext(lservices.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
+
+			var plugins = lservices.GetRequiredService<IPluginStore>();
+			var pluginLoader = lservices.GetRequiredService<IPluginLoader>();
+			var commandRepositoryBuilder = new CommandRespositoryBuilder();
+			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
+
+			var pluginInitializer = new ClientPluginInitializer<IHTMLUIContext>(client, commandRepositoryBuilder, bodyTypeResolverBuilder, uiManager);
+
+			plugins.InitializeStoreAsync(pluginLoader).AsTask().Wait();
+			plugins.InitalizePlugins(pluginInitializer);
+
+			commandRepositoryBuilder.BakeToRepository(lservices.GetRequiredService<ICommandRepository>());
+			bodyTypeResolverBuilder.BakeToResolver(lservices.GetRequiredService<IBodyTypeResolver>());
 
 
 			var clientThread = new Thread(ClientThreadHandle);
@@ -113,22 +131,9 @@ namespace StarComputer.Client.UI.Avalonia
 
 			var lservices = services!;
 			var client = lservices.GetRequiredService<IClient>();
-			var ui = lservices.GetRequiredService<IConsoleUIContext>();
+			var plugins = lservices.GetRequiredService<IPluginStore>();
 
 			SynchronizationContext.SetSynchronizationContext(lservices.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
-
-			var plugins = lservices.GetRequiredService<IPluginStore>();
-			var pluginLoader = lservices.GetRequiredService<IPluginLoader>();
-			var commandRepositoryBuilder = new CommandRespositoryBuilder();
-			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
-
-			var pluginInitializer = new ClientPluginInitializer<IConsoleUIContext>(client, commandRepositoryBuilder, bodyTypeResolverBuilder, ui);
-
-			plugins.InitializeStoreAsync(pluginLoader).AsTask().Wait();
-			plugins.InitalizePlugins(pluginInitializer);
-
-			commandRepositoryBuilder.BakeToRepository(lservices.GetRequiredService<ICommandRepository>());
-			bodyTypeResolverBuilder.BakeToResolver(lservices.GetRequiredService<IBodyTypeResolver>());
 
 			client.MainLoop(plugins);
 		}

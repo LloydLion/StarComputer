@@ -7,6 +7,7 @@ using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Server.Abstractions;
 using System.Reflection;
+using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 
 namespace HelloPlugin
 {
@@ -14,23 +15,31 @@ namespace HelloPlugin
 	public class HelloPlugin : IPlugin
 	{
 		private IProtocolEnvironment? protocol = null;
-		private IConsoleUIContext? ui = null;
+		private IUIContext? ui = null;
+		private readonly List<string> messagesForHtmlUI = new();
+		private readonly MagicContext htmlUIContext;
 
 
 		private IProtocolEnvironment Protocol => protocol!;
 
-		private IConsoleUIContext UI => ui!;
+		private IUIContext UI => ui!;
 
 		private string UserName => Protocol is IClientProtocolEnviroment client ? "Client/" + client.Client.GetConnectionConfiguration().Login : "Server";
 
 		public string Domain => "Hello";
 
-		public Type TargetUIContextType => typeof(IConsoleUIContext);
+		public IReadOnlyCollection<Type> TargetUIContextTypes { get; } = new[] { typeof(IConsoleUIContext), typeof(IHTMLUIContext) };
 
 		public Version Version { get; } = Assembly.GetExecutingAssembly().GetName().Version!;
 
 
-		public void InitializeAndBuild(
+		public HelloPlugin()
+		{
+			htmlUIContext = new(messagesForHtmlUI, SendMessage);
+		}
+
+
+		public async void InitializeAndBuild(
 			IProtocolEnvironment protocolEnviroment,
 			IUIContext uiContext,
 			ICommandRepositoryBuilder commandsBuilder,
@@ -38,42 +47,22 @@ namespace HelloPlugin
 		{
 			resolverBuilder.RegisterAllias(typeof(GreetingBody), "greeting");
 
+			Directory.CreateDirectory("../../../../resources/Hello");
+			File.Copy("../../../../plugins/HelloPlugin/x64/Debug/net6.0/demo.html", "../../../../resources/Hello/demo.html", overwrite: true);
 
-			ui = (IConsoleUIContext)uiContext;
+			ui = uiContext;
 			protocol = protocolEnviroment;
 
-			ui.NewLineSent += onLineSent;
-
-			async void onLineSent(string line)
+			if (uiContext is IConsoleUIContext consoleUI)
 			{
-				var body = new GreetingBody() { OriginUser = UserName };
-
-				if (line.Contains('\t'))
-				{
-					var splits = line.Split('\t', 2);
-
-					body.TargetUser = splits[0];
-					body.Message = splits[1];
-				}
-				else
-				{
-					body.TargetUser = null;
-					body.Message = line;
-				}
-
-
-				var message = new ProtocolMessage(Domain, body, null, null);
-
-				if (protocolEnviroment is IServerProtocolEnvironment server)
-				{
-					foreach (var client in server.Server.ListClients())
-						await client.ProtocolAgent.SendMessageAsync(message);
-				}
-				else if (protocolEnviroment is IClientProtocolEnviroment client)
-				{
-					await client.Client.GetServerAgent().SendMessageAsync(message);
-				}
+				consoleUI.NewLineSent += SendMessage;
 			}
+			else if (uiContext is IHTMLUIContext htmlUI)
+			{
+				await htmlUI.LoadHTMLPageAsync("demo.html", new());
+				htmlUI.SetJSPluginContext(htmlUIContext);
+			}
+			else throw new NotSupportedException("HelloPlugin doesn't support UI context of type " + uiContext.GetType().FullName);
 		}
 
 		public ValueTask ProcessCommandAsync(PluginCommandContext commandContext)
@@ -85,16 +74,6 @@ namespace HelloPlugin
 		{
 			if (message.Body is GreetingBody body)
 			{
-				if (body.TargetUser is null)
-				{
-					UI.Out.WriteLine($"[{body.OriginUser}]: " + body.Message);
-				}
-				else if (body.TargetUser == UserName)
-				{
-					UI.Out.WriteLine($"!DM! [{body.OriginUser}]: " + body.Message);
-				}
-				
-
 				if (Protocol is IServerProtocolEnvironment server)
 				{
 					var clients = server.Server.ListClients().Where(s => s.ProtocolAgent != messageContext.Agent);
@@ -102,6 +81,58 @@ namespace HelloPlugin
 					foreach (var client in clients)
 						await client.ProtocolAgent.SendMessageAsync(message);
 				}
+
+
+				if (UI is IConsoleUIContext consoleUI)
+				{
+					if (body.TargetUser is null)
+						consoleUI.Out.WriteLine($"[{body.OriginUser}]: " + body.Message);
+					else if (body.TargetUser == UserName)
+						consoleUI.Out.WriteLine($"!DM! [{body.OriginUser}]: " + body.Message);
+
+				}
+				else if (UI is IHTMLUIContext htmlUI)
+				{
+					if (body.TargetUser is null)
+						messagesForHtmlUI.Add($"[{body.OriginUser}]: " + body.Message);
+					else if (body.TargetUser == UserName)
+						messagesForHtmlUI.Add($"!DM! [{body.OriginUser}]: " + body.Message);
+
+					if (messagesForHtmlUI.Count > 3)
+						messagesForHtmlUI.RemoveRange(0, messagesForHtmlUI.Count - 3);
+				}
+				else throw new NotSupportedException("HelloPlugin doesn't support UI context of type " + UI.GetType().FullName);
+			}
+		}
+
+		private async void SendMessage(string line)
+		{
+			var body = new GreetingBody() { OriginUser = UserName };
+
+			if (line.Contains('\t'))
+			{
+				var splits = line.Split('\t', 2);
+
+				body.TargetUser = splits[0];
+				body.Message = splits[1];
+			}
+			else
+			{
+				body.TargetUser = null;
+				body.Message = line;
+			}
+
+
+			var message = new ProtocolMessage(Domain, body, null, null);
+
+			if (Protocol is IServerProtocolEnvironment server)
+			{
+				foreach (var client in server.Server.ListClients())
+					await client.ProtocolAgent.SendMessageAsync(message);
+			}
+			else if (Protocol is IClientProtocolEnviroment client)
+			{
+				await client.Client.GetServerAgent().SendMessageAsync(message);
 			}
 		}
 
@@ -113,6 +144,24 @@ namespace HelloPlugin
 			public string OriginUser { get; set; } = "";
 
 			public string? TargetUser { get; set; } = null;
+		}
+
+		private class MagicContext
+		{
+			private readonly List<string> messages;
+			private readonly Action<string> sendMessageDelegate;
+
+
+			public MagicContext(List<string> messages, Action<string> sendMessageDelegate)
+			{
+				this.messages = messages;
+				this.sendMessageDelegate = sendMessageDelegate;
+			}
+
+
+			public string[] ListMessages() => messages.ToArray();
+
+			public void SendMessage(string line) => sendMessageDelegate(line);
 		}
 	}
 }

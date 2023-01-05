@@ -2,6 +2,7 @@
 						 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 						 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 						 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:StarComputer.Client.UI.Avalonia"
 						 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
 						 x:Class="StarComputer.Client.UI.Avalonia.ClientView">
 	<Grid>
@@ -25,6 +26,12 @@
       <TextBlock Text="{Binding ConnectionErrorMessage}" TextWrapping="Wrap" Margin="10" Foreground="Red"/>
     </StackPanel>
 
+    <DockPanel Grid.Column="1" Grid.Row="0">
+      <ComboBox x:Name="pluginSelector" DockPanel.Dock="Top" Margin="20 20 0 0" PlaceholderText="Select plugin to show"/>
+      <local:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+    </DockPanel>
+
+    <!--
     <Grid Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsConnected}">
       <Grid.RowDefinitions>
         <RowDefinition Height="*"/>
@@ -43,5 +50,6 @@
         <Button x:Name="sendButton" Margin="-65 0 20 20" Content="Send" Grid.Column="1" Width="65" HorizontalContentAlignment="Center"/>
       </Grid>
     </Grid>
+    -->
 	</Grid>
 </UserControl>

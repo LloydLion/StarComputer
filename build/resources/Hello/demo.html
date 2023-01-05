@@ -1,0 +1,20 @@
+﻿<h1>Hello world</h1>
+<input type="input" id="textBox"/>
+<button onClick="sendMessage()">Send message</button>
+<br/>
+<br/>
+<button onClick="printMessages()">List messages</button>
+
+<script type="text/javascript">	
+	async function sendMessage()
+	{
+		const textbox = document.getElementById("textBox");
+		await context.sendMessage(textbox.value);
+		textbox.value = "";
+	}
+
+	async function printMessages()
+	{
+		alert((await context.listMessages()).join('\n'));
+	}
+</script>
