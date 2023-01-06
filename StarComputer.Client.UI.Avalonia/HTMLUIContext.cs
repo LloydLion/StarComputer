@@ -1,4 +1,5 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using System;
 using System.ComponentModel;
@@ -11,31 +12,31 @@ namespace StarComputer.Client.UI.Avalonia
 	public class HTMLUIContext : IHTMLUIContext
 	{
 		private IHTMLPageConstructor? pageConstructor;
-		private readonly HTMLUIManager owner;
-		private readonly IPlugin plugin;
+		private readonly IResourcesManager resources;
 		private readonly HTMLView view = new();
 
 
-		public HTMLUIContext(HTMLUIManager owner, IPlugin plugin)
+		public HTMLUIContext(IResourcesManager resources)
 		{
-			this.owner = owner;
-			this.plugin = plugin;
+			this.resources = resources;
 		}
 
 
 		public async ValueTask<HTMLPageLoadResult> LoadHTMLPageAsync(string resourceName, PageConstructionBag constructionBag)
 		{
-			var directory = Path.Combine("../../../../resources", plugin.Domain);
-
 			string document;
 			if (pageConstructor is null)
-				document = await File.ReadAllTextAsync(Path.Combine(directory, resourceName));
+			{
+				using var reader = new StreamReader(resources.OpenRead(resourceName));
+				document = await reader.ReadToEndAsync();
+			}
 			else document = pageConstructor.ConstructHTMLPage(resourceName, constructionBag);
 
-			var newDocumentPath = Path.Combine(directory, "starcomputer.temporal.html");
-			await File.WriteAllTextAsync(newDocumentPath, document);
+			using var temporalFile = resources.OpenTemporalFile("HTML");
+			var writer = new StreamWriter(temporalFile) { AutoFlush = true };
+			await writer.WriteAsync(document);
 
-			view.Address = FilePathToFileUrl(Path.GetFullPath(newDocumentPath));
+			view.Address = FilePathToFileUrl(temporalFile.Name);
 
 			return new();
 		}

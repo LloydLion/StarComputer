@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <BaseOutputPath>..\build\plugins\$(MSBuildProjectName)</BaseOutputPath>
     <Platforms>AnyCPU;x64</Platforms>
+    <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,9 +16,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="demo.html">
+    <None Update="resources\Hello\demo.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="mkdir &quot;$(ProjectDir)../build/resources&quot;&#xD;&#xA;xcopy &quot;$(ProjectDir)$(OutDir)resources&quot; &quot;$(ProjectDir)../build/resources&quot; /S /Y /R" />
+  </Target>
 
 </Project>

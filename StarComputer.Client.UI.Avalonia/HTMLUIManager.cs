@@ -1,4 +1,5 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Plugins.Resources;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,6 +9,7 @@ namespace StarComputer.Client.UI.Avalonia
 	public class HTMLUIManager : IUIContextFactory<HTMLUIContext>
 	{
 		private readonly Dictionary<IPlugin, HTMLUIContext> contexts = new();
+		private readonly IResourcesCatalog resources;
 		private IPlugin? activePlugin;
 
 
@@ -35,6 +37,12 @@ namespace StarComputer.Client.UI.Avalonia
 		public HTMLUIContext? ActiveContext { get; private set; }
 
 
+		public HTMLUIManager(IResourcesCatalog resources)
+		{
+			this.resources = resources;
+		}
+
+
 		public event Action<ContextChangingType>? ActiveContextChanged;
 
 
@@ -43,7 +51,7 @@ namespace StarComputer.Client.UI.Avalonia
 			if (contexts.ContainsKey(plugin)) return contexts[plugin];
 			else
 			{
-				var context = new HTMLUIContext(this, plugin);
+				var context = new HTMLUIContext(resources.GetResourcesFor(plugin));
 				contexts.Add(plugin, context);
 
 				return context;

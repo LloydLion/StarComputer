@@ -26,6 +26,8 @@ using ReactiveUI;
 using System.Net;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using System.Linq;
+using StarComputer.Common.Abstractions.Plugins.Resources;
+using StarComputer.Common.Plugins.Resources;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -43,13 +45,14 @@ namespace StarComputer.Client.UI.Avalonia
 #else
 			"config.json"
 #endif
-				).Build();
+			).Build();
 
 			Console.WriteLine("Using configuration: " + config.GetDebugView());
 			Console.WriteLine();
 
 			services = new ServiceCollection()
 				.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
+				.Configure<ResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 				.Configure<ReflectionPluginLoader.Options>(s =>
 				{
 					s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
@@ -73,6 +76,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
 				.AddSingleton<HTMLUIManager>()
+				.AddSingleton<IResourcesCatalog, ResourcesCatalog>()
 
 				.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 

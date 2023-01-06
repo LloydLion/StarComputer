@@ -6,6 +6,8 @@
 
 	"Connection":
 	{
+		"Locked": false,
+		"LoginLocked": false,
 		"IP": "127.0.0.1",
 		"Port": 623,
 		"Password": "DEBUG PASSWORD"
@@ -22,5 +24,10 @@
 		{
 			"PluginDirectories": "plugins"
 		}
+	},
+
+	"Resources":
+	{
+		"Path": "resources"
 	}
 }

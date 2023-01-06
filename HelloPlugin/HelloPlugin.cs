@@ -47,9 +47,6 @@ namespace HelloPlugin
 		{
 			resolverBuilder.RegisterAllias(typeof(GreetingBody), "greeting");
 
-			Directory.CreateDirectory("../../../../resources/Hello");
-			File.Copy("../../../../plugins/HelloPlugin/x64/Debug/net6.0/demo.html", "../../../../resources/Hello/demo.html", overwrite: true);
-
 			ui = uiContext;
 			protocol = protocolEnviroment;
 
