@@ -16,6 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="resources\Hello2\demo2.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="resources\Hello\demo.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

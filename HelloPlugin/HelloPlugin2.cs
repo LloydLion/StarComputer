@@ -12,7 +12,7 @@ using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 namespace HelloPlugin
 {
 	[Plugin]
-	public class HelloPlugin : IPlugin
+	public class HelloPlugin2 : IPlugin
 	{
 		private IProtocolEnvironment? protocol = null;
 		private IUIContext? ui = null;
@@ -25,14 +25,14 @@ namespace HelloPlugin
 
 		private string UserName => Protocol is IClientProtocolEnviroment client ? "Client/" + client.Client.GetConnectionConfiguration().Login : "Server";
 
-		public string Domain => "Hello";
+		public string Domain => "Hello2";
 
 		public IReadOnlyCollection<Type> TargetUIContextTypes { get; } = new[] { typeof(IConsoleUIContext), typeof(IHTMLUIContext) };
 
 		public Version Version { get; } = Assembly.GetExecutingAssembly().GetName().Version!;
 
 
-		public HelloPlugin()
+		public HelloPlugin2()
 		{
 			htmlUIContext = new(SendMessage);
 		}
@@ -55,7 +55,7 @@ namespace HelloPlugin
 			}
 			else if (uiContext is IHTMLUIContext htmlUI)
 			{
-				htmlUI.LoadHTMLPage("demo.html", new());
+				htmlUI.LoadHTMLPage("demo2.html", new());
 				htmlUI.SetJSPluginContext(htmlUIContext);
 			}
 			else throw new NotSupportedException("HelloPlugin doesn't support UI context of type " + uiContext.GetType().FullName);
@@ -100,7 +100,8 @@ namespace HelloPlugin
 
 		private async Task SendMessage(string line)
 		{
-			if (line.StartsWith("!")) return;
+			if (line.StartsWith("!") == false) return;
+			line = line[1..];
 
 			var body = new GreetingBody() { OriginUser = UserName };
 

@@ -2,7 +2,9 @@
 {
 	public interface IHTMLUIContext : IUIContext
 	{
-		public ValueTask<HTMLPageLoadResult> LoadHTMLPageAsync(string resourceName, PageConstructionBag constructionBag);
+		public HTMLPageLoadResult LoadHTMLPage(string resourceName, PageConstructionBag constructionBag);
+
+		public dynamic? ExecuteJavaScriptFunction(string functionName, params string[] arguments);
 
 		public void UseHTMLPageConstructor(IHTMLPageConstructor? pageConstructor);
 

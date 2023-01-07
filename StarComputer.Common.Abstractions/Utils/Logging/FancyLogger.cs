@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace StarComputer.Common.Abstractions.Utils.Logging
 {
@@ -55,6 +56,7 @@ namespace StarComputer.Common.Abstractions.Utils.Logging
 					_ => throw new NotSupportedException(),
 				};
 
+
 				lock (Console.Out)
 				{
 					Print($"{now:g} ({(direction ? '+' : '-')}{formattedDelta}) ", ConsoleColor.Cyan);
@@ -80,13 +82,13 @@ namespace StarComputer.Common.Abstractions.Utils.Logging
 					Print(message, ConsoleColor.White);
 
 
-					Console.WriteLine();
+					Print("\n", ConsoleColor.White);
 
 
 					if (exception is not null)
 					{
 						Print(exception.ToString(), ConsoleColor.Red);
-						Console.WriteLine();
+						Print("\n", ConsoleColor.Red);
 					}
 				}
 			}
@@ -98,6 +100,11 @@ namespace StarComputer.Common.Abstractions.Utils.Logging
 			Console.ForegroundColor = color;
 			Console.Write(message);
 			Console.ForegroundColor = oldColor;
+
+#if DEBUG
+			Debug.AutoFlush = true;
+			Debug.Write(message);
+#endif
 		}
 
 

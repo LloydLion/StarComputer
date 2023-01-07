@@ -116,10 +116,10 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public void SwitchPlugin(object? plugin)
 		{
-			if (plugin is VisualPlugin vp)
-			{
+			if (plugin is null)
+				uiManager.SwitchPlugin(null);
+			else if (plugin is VisualPlugin vp)
 				uiManager.SwitchPlugin(vp.Plugin);
-			}
 			else throw new ArgumentException("Invalid type of plugin", nameof(plugin));
 		}
 

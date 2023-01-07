@@ -2,7 +2,6 @@
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -11,6 +10,10 @@ namespace StarComputer.Client.UI.Avalonia
 		private readonly Dictionary<IPlugin, HTMLUIContext> contexts = new();
 		private readonly IResourcesCatalog resources;
 		private IPlugin? activePlugin;
+		private JavaScriptExecutor? executor;
+
+
+		public delegate dynamic? JavaScriptExecutor(IPlugin caller, string functionName, string[] arguments);
 
 
 		public IPlugin? ActivePlugin
@@ -20,21 +23,17 @@ namespace StarComputer.Client.UI.Avalonia
 			{
 				activePlugin = value;
 
-				if (ActiveContext is not null)
-					ActiveContext.GetView().PropertyChanged -= OnViewPropertyChanged;
-
 				if (activePlugin is not null)
-				{
 					ActiveContext = contexts[activePlugin];
-					ActiveContext.GetView().PropertyChanged += OnViewPropertyChanged;
-				}
 				else ActiveContext = null;
 
-				ActiveContextChanged?.Invoke(ContextChangingType.ActivePluginChanged);
+				ContextChanged?.Invoke(ContextChangingType.ActivePluginChanged, ActiveContext);
 			}	
 		}
 
 		public HTMLUIContext? ActiveContext { get; private set; }
+
+		public IReadOnlyDictionary<IPlugin, HTMLUIContext> Contexts => contexts;
 
 
 		public HTMLUIManager(IResourcesCatalog resources)
@@ -43,7 +42,7 @@ namespace StarComputer.Client.UI.Avalonia
 		}
 
 
-		public event Action<ContextChangingType>? ActiveContextChanged;
+		public event Action<ContextChangingType, HTMLUIContext?>? ContextChanged;
 
 
 		public HTMLUIContext CreateContext(IPlugin plugin)
@@ -51,26 +50,41 @@ namespace StarComputer.Client.UI.Avalonia
 			if (contexts.ContainsKey(plugin)) return contexts[plugin];
 			else
 			{
-				var context = new HTMLUIContext(resources.GetResourcesFor(plugin));
+				var context = new HTMLUIContext(this, plugin, resources.GetResourcesFor(plugin));
+
+				context.JSContextChanged += OnJSContextChanged;
+				context.NewPageLoaded += OnNewPageLoaded;
+
 				contexts.Add(plugin, context);
 
 				return context;
 			}
 		}
 
+		public HTMLUIContext GetContext(IPlugin plugin) => contexts[plugin];
+
 		public void SwitchPlugin(IPlugin? plugin)
 		{
 			ActivePlugin = plugin;
 		}
 
-		private void OnViewPropertyChanged(object? sender, PropertyChangedEventArgs e)
+		public void SetJavaScriptExecutor(JavaScriptExecutor executor)
 		{
-			if (e.PropertyName == nameof(HTMLUIContext.HTMLView.Address))
-				ActiveContextChanged?.Invoke(ContextChangingType.AddressChanged);
-
-			if (e.PropertyName == nameof(HTMLUIContext.HTMLView.JSContext))
-				ActiveContextChanged?.Invoke(ContextChangingType.JSContextChanged);
+			this.executor = executor;
 		}
+
+		public dynamic? ExecuteJavaScript(IPlugin caller, string functionName, params string[] arguments)
+		{
+			if (executor is null)
+				throw new NullReferenceException("JavaScript executor was null");
+			return executor(caller, functionName, arguments);
+		}
+
+		private void OnJSContextChanged(object? sender, EventArgs _) =>
+			ContextChanged?.Invoke(ContextChangingType.JSContextChanged, (HTMLUIContext?)sender);
+
+		private void OnNewPageLoaded(object? sender, EventArgs _) =>
+			ContextChanged?.Invoke(ContextChangingType.AddressChanged, (HTMLUIContext?)sender);
 
 
 		public enum ContextChangingType

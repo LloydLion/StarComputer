@@ -1,10 +1,21 @@
 using Avalonia.Controls;
+using StarComputer.Common.Abstractions.Plugins;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Dynamic;
+using Xilium.CefGlue;
+using Xilium.CefGlue.Avalonia;
+using Xilium.CefGlue.Common.Handlers;
 
 namespace StarComputer.Client.UI.Avalonia
 {
 	public partial class BrowserView : UserControl
 	{
 		public const string JSContextFieldName = "context";
+
+
+		private readonly Dictionary<IPlugin, AvaloniaCefBrowser> browsers = new();
 
 
 		private BrowserViewModel Context => (BrowserViewModel)DataContext!;
@@ -22,23 +33,66 @@ namespace StarComputer.Client.UI.Avalonia
 		}
 
 
-		private void OnBrowserViewInitialized(object? sender, System.EventArgs e)
+		private void OnBrowserViewInitialized(object? sender, EventArgs e)
 		{
-			Context.PropertyChanged += (server, e) =>
+			Context.ContextChanged += (type, ctx) =>
 			{
-				if (e.PropertyName == nameof(BrowserViewModel.JSContext))
+				if (type == HTMLUIManager.ContextChangingType.ActivePluginChanged)
 				{
-					if (Context.JSContext is not null)
-						browser.RegisterJavascriptObject(Context.JSContext, JSContextFieldName);
-					else browser.UnregisterJavascriptObject(JSContextFieldName);
+					browserFrame.Child = GetBrowser(ctx?.Plugin);
 				}
+				else if (type == HTMLUIManager.ContextChangingType.AddressChanged)
+				{
+					if (ctx is not null)
+					{
+						GetBrowser(ctx.Plugin).Address = ctx?.Address ?? "file:///gugpage.html";
+					}
+				}
+				else //HTMLUIManager.ContextChangingType.JSContextChanged
+				{
+					if (ctx is not null)
+					{
+						var browser = GetBrowser(ctx.Plugin);
 
-				if (e.PropertyName == nameof(BrowserViewModel.Address) && Context.Address is not null)
-					browser.Address = Context.Address;
+						if (ctx.JSContext is not null)
+							browser.RegisterJavascriptObject(ctx.JSContext, JSContextFieldName);
+						else browser.UnregisterJavascriptObject(JSContextFieldName);
+					}
+				}
 			};
 
-			if (Context.JSContext is not null) browser.RegisterJavascriptObject(Context.JSContext, JSContextFieldName);
-			if (Context.Address is not null) browser.Address = Context.Address;
+
+			foreach (var ctx in Context.Contexts)
+			{
+				var browser = GetBrowser(ctx.Key);
+
+				browser.Address = ctx.Value.Address ?? "file:///gugpage.html";
+
+				if (ctx.Value.JSContext is not null)
+					browser.RegisterJavascriptObject(ctx.Value.JSContext, JSContextFieldName);
+			}
+
+
+			Context.SetJavaScriptExecutor(ExecuteJavaScript);
+		}
+
+		private dynamic? ExecuteJavaScript(IPlugin caller, string functionName, string[] arguments)
+		{
+			var code = $"{functionName}({string.Join(", ", arguments)});";
+			return GetBrowser(caller).EvaluateJavaScript<ExpandoObject>(code).Result;
+		}
+
+		[return: NotNullIfNotNull("plugin")]
+		private AvaloniaCefBrowser? GetBrowser(IPlugin? plugin)
+		{
+			if (plugin is null) return null;
+			else if (browsers.TryGetValue(plugin, out var val)) return val;
+			else
+			{
+				var browser = new AvaloniaCefBrowser();
+				browsers.Add(plugin, browser);
+				return browser;
+			}
 		}
 	}
 }

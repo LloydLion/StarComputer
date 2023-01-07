@@ -33,7 +33,15 @@ namespace StarComputer.Client.UI.Avalonia
 				if (e.PropertyName == nameof(ClientViewModel.CanConnect))
 					connectButton.IsEnabled = Context.CanConnect;
 				if (e.PropertyName == nameof(ClientViewModel.IsConnected))
+				{
 					disconnectButton.IsEnabled = Context.IsConnected;
+
+					if (Context.IsConnected == false)
+					{
+						Context.SwitchPlugin(null);
+						pluginSelector.SelectedItem = null;
+					}
+				}
 			};
 
 			pluginSelector.Items = Context.Plugins;

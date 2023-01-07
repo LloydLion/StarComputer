@@ -1,4 +1,7 @@
 ﻿using Avalonia.Threading;
+using StarComputer.Common.Abstractions.Plugins;
+using System;
+using System.Collections.Generic;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -10,21 +13,16 @@ namespace StarComputer.Client.UI.Avalonia
 		public BrowserViewModel(HTMLUIManager manager)
 		{
 			this.manager = manager;
-			manager.ActiveContextChanged += OnActivePluginChanged;
+			manager.ContextChanged += (a, b) => Dispatcher.UIThread.Post(() => ContextChanged?.Invoke(a, b), DispatcherPriority.Send);
 		}
 
 
-		public object? JSContext => manager.ActiveContext?.GetView().JSContext;
-
-		public string? Address => manager.ActiveContext?.GetView().Address;
+		public event Action<HTMLUIManager.ContextChangingType, HTMLUIContext?>? ContextChanged;
 
 
-		private void OnActivePluginChanged(HTMLUIManager.ContextChangingType type)
-		{
-			if (type == HTMLUIManager.ContextChangingType.ActivePluginChanged || type == HTMLUIManager.ContextChangingType.AddressChanged)
-				Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(Address)), DispatcherPriority.Send);
-			if (type == HTMLUIManager.ContextChangingType.ActivePluginChanged || type == HTMLUIManager.ContextChangingType.JSContextChanged)
-				Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(JSContext)), DispatcherPriority.Send);
-		}
+		public IReadOnlyDictionary<IPlugin, HTMLUIContext> Contexts => manager.Contexts;
+
+
+		public void SetJavaScriptExecutor(HTMLUIManager.JavaScriptExecutor executor) => manager.SetJavaScriptExecutor(executor);
 	}
 }

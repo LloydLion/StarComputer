@@ -2,7 +2,6 @@
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using System;
-using System.ComponentModel;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,38 +11,55 @@ namespace StarComputer.Client.UI.Avalonia
 	public class HTMLUIContext : IHTMLUIContext
 	{
 		private IHTMLPageConstructor? pageConstructor;
+		private readonly HTMLUIManager owner;
+		private readonly IPlugin plugin;
 		private readonly IResourcesManager resources;
-		private readonly HTMLView view = new();
 
 
-		public HTMLUIContext(IResourcesManager resources)
+		public HTMLUIContext(HTMLUIManager owner, IPlugin plugin, IResourcesManager resources)
 		{
+			this.owner = owner;
+			this.plugin = plugin;
 			this.resources = resources;
 		}
 
 
-		public async ValueTask<HTMLPageLoadResult> LoadHTMLPageAsync(string resourceName, PageConstructionBag constructionBag)
+		public object? JSContext { get; private set; }
+
+		public string? Address { get; private set; }
+
+		public IPlugin Plugin => plugin;
+
+
+		public event EventHandler? NewPageLoaded;
+
+		public event EventHandler? JSContextChanged;
+
+
+		public HTMLPageLoadResult LoadHTMLPage(string resourceName, PageConstructionBag constructionBag)
 		{
 			string document;
 			if (pageConstructor is null)
 			{
 				using var reader = new StreamReader(resources.OpenRead(resourceName));
-				document = await reader.ReadToEndAsync();
+				document = reader.ReadToEnd();
 			}
 			else document = pageConstructor.ConstructHTMLPage(resourceName, constructionBag);
 
 			using var temporalFile = resources.OpenTemporalFile("HTML");
 			var writer = new StreamWriter(temporalFile) { AutoFlush = true };
-			await writer.WriteAsync(document);
+			writer.Write(document);
 
-			view.Address = FilePathToFileUrl(temporalFile.Name);
+			Address = FilePathToFileUrl(temporalFile.Name);
+			NewPageLoaded?.Invoke(this, EventArgs.Empty);
 
 			return new();
 		}
 
 		public void SetJSPluginContext(object contextObject)
 		{
-			view.JSContext = contextObject;
+			JSContext = contextObject;
+			JSContextChanged?.Invoke(this, EventArgs.Empty);
 		}
 
 		public void UseHTMLPageConstructor(IHTMLPageConstructor? pageConstructor)
@@ -51,7 +67,10 @@ namespace StarComputer.Client.UI.Avalonia
 			this.pageConstructor = pageConstructor;
 		}
 
-		public HTMLView GetView() => view;
+		public dynamic? ExecuteJavaScriptFunction(string functionName, params string[] arguments)
+		{
+			return owner.ExecuteJavaScript(plugin, functionName, arguments);
+		}
 
 		private static string FilePathToFileUrl(string filePath)
 		{
@@ -72,21 +91,6 @@ namespace StarComputer.Client.UI.Avalonia
 				uri.Insert(0, "file:///");
 
 			return uri.ToString();
-		}
-
-
-		public class HTMLView : INotifyPropertyChanged
-		{
-			private object? jSContext;
-			private string? address;
-
-
-			public event PropertyChangedEventHandler? PropertyChanged;
-
-
-			public object? JSContext { get => jSContext; set { jSContext = value; PropertyChanged?.Invoke(this, new(nameof(JSContext))); } }
-
-			public string? Address { get => address; set { address = value; PropertyChanged?.Invoke(this, new(nameof(Address))); } }
 		}
 	}
 }

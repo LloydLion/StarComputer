@@ -26,7 +26,7 @@
       <TextBlock Text="{Binding ConnectionErrorMessage}" TextWrapping="Wrap" Margin="10" Foreground="Red"/>
     </StackPanel>
 
-    <DockPanel Grid.Column="1" Grid.Row="0">
+    <DockPanel Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsConnected}">
       <ComboBox x:Name="pluginSelector" DockPanel.Dock="Top" Margin="20 20 0 0" PlaceholderText="Select plugin to show"/>
       <local:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
     </DockPanel>
