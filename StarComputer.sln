@@ -29,9 +29,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloPlugin", "HelloPlugin\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Client.UI.Avalonia", "StarComputer.Client.UI.Avalonia\StarComputer.Client.UI.Avalonia.csproj", "{E413F0C7-66CC-47F0-8C3D-96B7DDFE73AF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Common.Abstractions.Plugins.UI.Console", "StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj", "{1ED76399-C8B4-4AEE-ADAD-DF42A29EF449}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Common.Abstractions.Plugins.UI.Console", "StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj", "{1ED76399-C8B4-4AEE-ADAD-DF42A29EF449}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Common.Abstractions.Plugins.UI.HTML", "StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj", "{E5A2ECAE-4654-449C-9D22-9FB482012CBF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Common.Abstractions.Plugins.UI.HTML", "StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj", "{E5A2ECAE-4654-449C-9D22-9FB482012CBF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.UI.Avalonia", "StarComputer.UI.Avalonia\StarComputer.UI.Avalonia.csproj", "{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -153,6 +155,14 @@ Global
 		{E5A2ECAE-4654-449C-9D22-9FB482012CBF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{E5A2ECAE-4654-449C-9D22-9FB482012CBF}.Release|x64.ActiveCfg = Release|x64
 		{E5A2ECAE-4654-449C-9D22-9FB482012CBF}.Release|x64.Build.0 = Release|x64
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Debug|x64.ActiveCfg = Debug|x64
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Debug|x64.Build.0 = Debug|x64
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Release|x64.ActiveCfg = Release|Any CPU
+		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

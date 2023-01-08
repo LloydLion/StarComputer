@@ -1,17 +1,27 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using System;
+using System.Reflection;
 
-namespace StarComputer.Client.UI.Avalonia
+namespace StarComputer.UI.Avalonia
 {
 	public class ViewLocator : IDataTemplate
 	{
+		private readonly Assembly targetAssembly;
+
+
+		public ViewLocator()
+		{
+			targetAssembly = Assembly.GetCallingAssembly();
+		}
+
+
 		public IControl Build(object data)
 		{
 			try
 			{
 				var name = data.GetType().FullName!.Replace("ViewModel", "View");
-				var type = Type.GetType(name);
+				var type = targetAssembly.GetType(name);
 
 				if (type is not null)
 				{

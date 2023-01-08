@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x64;x64</Platforms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="0.10.18" />
+    <PackageReference Include="Avalonia.Desktop" Version="0.10.18" />
+    <PackageReference Include="Avalonia.Diagnostics" Version="0.10.18" />
+    <PackageReference Include="CefGlue.Avalonia" Version="91.4472.31" />
+    <PackageReference Include="ReactiveUI" Version="18.4.1" />
+    <PackageReference Include="XamlNameReferenceGenerator" Version="1.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj" />
+    <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj" />
+    <ProjectReference Include="..\StarComputer.Common\StarComputer.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="BrowserView.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+    <Compile Update="ConnectionView.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+    <Compile Update="PluginSelectorView.axaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="BrowserView.axaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="ConnectionView.axaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="gugpage.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="PluginSelectorView.axaml">
+      <SubType>Designer</SubType>
+    </None>
+  </ItemGroup>
+
+</Project>

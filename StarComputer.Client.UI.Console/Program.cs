@@ -67,7 +67,7 @@ var pluginLoader = services.GetRequiredService<IPluginLoader>();
 var commandRepositoryBuilder = new CommandRespositoryBuilder();
 var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 
-var pluginInitializer = new ClientPluginInitializer<IConsoleUIContext>(client, commandRepositoryBuilder, bodyTypeResolverBuilder, ui);
+var pluginInitializer = new ClientPluginInitializer<IConsoleUIContext>(client, commandRepositoryBuilder, bodyTypeResolverBuilder, new ConsoleUIContextGugFactory(ui));
 
 await plugins.InitializeStoreAsync(pluginLoader);
 plugins.InitalizePlugins(pluginInitializer);

@@ -28,6 +28,7 @@ using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using System.Linq;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Plugins.Resources;
+using StarComputer.UI.Avalonia;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -57,7 +58,7 @@ namespace StarComputer.Client.UI.Avalonia
 				{
 					s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
 				})
-				.Configure<ClientViewModel.Options>(s =>
+				.Configure<ConnectionViewModel.Options>(s =>
 				{
 					var configSection = config.GetSection("Connection");
 					s.IsConnectionDataLocked = configSection.GetValue<bool>("Locked");

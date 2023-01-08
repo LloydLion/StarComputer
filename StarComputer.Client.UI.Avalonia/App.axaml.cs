@@ -2,12 +2,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Microsoft.Extensions.DependencyInjection;
 using System;
-using StarComputer.Client.Abstractions;
 using System.Threading;
-using Microsoft.Extensions.Options;
-using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.UI.Avalonia;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -51,12 +48,7 @@ namespace StarComputer.Client.UI.Avalonia
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 				{
 					var window = new MainWindow();
-					window.Initialize(new MainWindowViewModel(
-						services.GetRequiredService<IClient>(),
-						services.GetRequiredService<IOptions<ClientViewModel.Options>>(),
-						services.GetRequiredService<IPluginStore>(),
-						services.GetRequiredService<HTMLUIManager>()
-					));
+					window.Initialize(new MainWindowViewModel(services));
 
 					desktop.MainWindow = window;
 				}

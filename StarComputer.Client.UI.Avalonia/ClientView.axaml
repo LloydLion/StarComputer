@@ -3,6 +3,7 @@
 						 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
 						 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="using:StarComputer.Client.UI.Avalonia"
+             xmlns:ui="using:StarComputer.UI.Avalonia"
 						 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
 						 x:Class="StarComputer.Client.UI.Avalonia.ClientView">
 	<Grid>
@@ -13,43 +14,12 @@
 		<Grid.RowDefinitions>
 			<RowDefinition/>
 		</Grid.RowDefinitions>
-
-    <StackPanel Grid.Column="0" Grid.Row="0">
-			<Label Content="Connection" HorizontalAlignment="Center" FontWeight="SemiBold" FontSize="25"/>
-			<TextBox IsEnabled="{Binding IsConnectionDataChangable}" Text="{Binding ConnectionEndPoint}" Watermark="Endpoint" Margin="10" MaxWidth="240"/>
-			<TextBox IsEnabled="{Binding IsConnectionDataChangable}" Text="{Binding ServerPassword}" Watermark="Server password" Margin="10" MaxWidth="240"/>
-			<TextBox IsEnabled="{Binding IsConnectionLoginChangable}" Text="{Binding Login}" Watermark="Login" Margin="10" MaxWidth="240"/>
-      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="10">
-        <Button x:Name="connectButton" Content="Connect" HorizontalAlignment="Center" MaxWidth="240" MinWidth="100" HorizontalContentAlignment="Center"/>
-        <Button x:Name="disconnectButton" Content="Disconnect" HorizontalAlignment="Center" MaxWidth="240" MinWidth="100" HorizontalContentAlignment="Center"/>
-      </StackPanel>
-      <TextBlock Text="{Binding ConnectionErrorMessage}" TextWrapping="Wrap" Margin="10" Foreground="Red"/>
-    </StackPanel>
+    
+    <local:ConnectionView DataContext="{Binding Connection}"/>
 
     <DockPanel Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsConnected}">
-      <ComboBox x:Name="pluginSelector" DockPanel.Dock="Top" Margin="20 20 0 0" PlaceholderText="Select plugin to show"/>
-      <local:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+      <ui:PluginSelectorView DataContext="{Binding PluginSelector}" DockPanel.Dock="Top"/>
+      <ui:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
     </DockPanel>
-
-    <!--
-    <Grid Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsConnected}">
-      <Grid.RowDefinitions>
-        <RowDefinition Height="*"/>
-        <RowDefinition Height="auto"/>
-      </Grid.RowDefinitions>
-      
-      <TextBox Text="{Binding OutputContent}" Grid.Row="0" Margin="20" IsReadOnly="True" Watermark="Start application to see console" TextWrapping="Wrap" />
-      
-      <Grid Grid.Row="1">
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*"/>
-          <ColumnDefinition Width="auto"/>
-        </Grid.ColumnDefinitions>
-        
-				<TextBox x:Name="lineInput" Margin="20 0 0 20" MinWidth="240" Watermark="Text input"/>
-        <Button x:Name="sendButton" Margin="-65 0 20 20" Content="Send" Grid.Column="1" Width="65" HorizontalContentAlignment="Center"/>
-      </Grid>
-    </Grid>
-    -->
 	</Grid>
 </UserControl>

@@ -1,14 +1,10 @@
 using Avalonia.Controls;
 using StarComputer.Common.Abstractions.Plugins;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Dynamic;
-using Xilium.CefGlue;
 using Xilium.CefGlue.Avalonia;
-using Xilium.CefGlue.Common.Handlers;
 
-namespace StarComputer.Client.UI.Avalonia
+namespace StarComputer.UI.Avalonia
 {
 	public partial class BrowserView : UserControl
 	{

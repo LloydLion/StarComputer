@@ -6,7 +6,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace StarComputer.Client.UI.Avalonia
+namespace StarComputer.UI.Avalonia
 {
 	public class HTMLUIContext : IHTMLUIContext
 	{

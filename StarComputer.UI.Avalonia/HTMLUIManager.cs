@@ -3,7 +3,7 @@ using StarComputer.Common.Abstractions.Plugins.Resources;
 using System;
 using System.Collections.Generic;
 
-namespace StarComputer.Client.UI.Avalonia
+namespace StarComputer.UI.Avalonia
 {
 	public class HTMLUIManager : IUIContextFactory<HTMLUIContext>
 	{

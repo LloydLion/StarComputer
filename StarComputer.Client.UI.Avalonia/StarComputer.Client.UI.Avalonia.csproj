@@ -34,6 +34,13 @@
     <ProjectReference Include="..\StarComputer.Client\StarComputer.Client.csproj" />
     <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj" />
     <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj" />
+    <ProjectReference Include="..\StarComputer.UI.Avalonia\StarComputer.UI.Avalonia.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="ConnectionView.axaml.cs">
+      <DependentUpon>%(Filename)</DependentUpon>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>
@@ -41,9 +48,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="config.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="gugpage.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
