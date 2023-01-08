@@ -5,12 +5,20 @@ namespace StarComputer.Server.Abstractions
 {
 	public interface IServer
 	{
-		public void Listen(IPluginStore plugins);
+		public bool IsListening { get; }
+
+
+		public event Action ListeningStatusChanged;
+
+
+		public ValueTask ListenAsync();
 
 		public void Close();
 
 		public IEnumerable<ServerSideClient> ListClients();
 
 		public ServerSideClient GetClientByAgent(IRemoteProtocolAgent protocolAgent);
+
+		public void MainLoop(IPluginStore plugins);
 	}
 }

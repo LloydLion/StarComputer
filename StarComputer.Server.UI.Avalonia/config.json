@@ -1,0 +1,25 @@
+﻿{
+	"Server":
+	{
+		"Interface": "127.0.0.1",
+		"Password" : "DEBUG PASSWORD"
+	},
+
+	"Logging":
+	{
+		"MinLevel": "None"
+	},
+
+	"PluginLoading":
+	{
+		"Reflection":
+		{
+			"PluginDirectories": "plugins"
+		}
+	},
+
+	"Resources":
+	{
+		"Path": "resources"
+	}
+}

@@ -21,7 +21,7 @@ namespace StarComputer.Server
 		private static readonly EventId CloseSignalRecivedID = new(12, "CloseSignalRecived");
 		private static readonly EventId NewConnectionAcceptedID = new(13, "NewConnectionAccepted");
 		private static readonly EventId NewClientAcceptedID = new(14, "NewClientAccepted");
-		private static readonly EventId ClientConnectedID = new (15, "ClientConnected");
+		private static readonly EventId ClientConnectedID = new(15, "ClientConnected");
 		private static readonly EventId ClientJoinedID = new(16, "ClientJoined");
 		private static readonly EventId ClientRejoinedID = new(17, "ClientRejoined");
 		private static readonly EventId ClientConnectionLostID = new(18, "ClientConnectionLost");
@@ -49,6 +49,12 @@ namespace StarComputer.Server
 
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 
+		private readonly AutoResetEvent onServerClosed = new(false);
+		private readonly AutoResetEvent onListeningEvent = new(false);
+		private TaskCompletionSource? listeningTaskTCS = null;
+		private bool isListening;
+
+
 		public Server(
 			IOptions<ServerConfiguration> options,
 			ILogger<Server> logger,
@@ -72,17 +78,45 @@ namespace StarComputer.Server
 		}
 
 
-		public void Listen(IPluginStore plugins)
+		public bool IsListening { get => isListening; private set { isListening = value; ListeningStatusChanged?.Invoke(); } }
+
+
+		public event Action? ListeningStatusChanged;
+
+
+		public ValueTask ListenAsync()
 		{
-			connectionListener.Start(options.MaxPendingConnectionQueue);
+			listeningTaskTCS = new();
+			onListeningEvent.Set();
+
+			return new(listeningTaskTCS.Task);
+		}
+
+		public void MainLoop(IPluginStore plugins)
+		{
+		restart:
+			onListeningEvent.WaitOne();
+			try
+			{
+				connectionListener.Start(options.MaxPendingConnectionQueue);
+				listeningTaskTCS?.SetResult();
+				IsListening = true;
+			}
+			catch (Exception ex)
+			{
+				listeningTaskTCS?.SetException(ex);
+				IsListening = false;
+				goto restart;
+			}
 
 			var waitForClient = new AutoResetEvent(false);
 			Task<TcpClient> clientTask = connectionListener.AcceptTcpClientAsync().ContinueWith(s => { waitForClient.Set(); return s.Result; });
 
 			logger.Log(LogLevel.Information, ServerReadyID, "Server is ready and listen on {IP}:{Port}", options.Interface, options.ConnectionPort);
 
-			Span<WaitHandle> alsoWait = new WaitHandle[1];
+			Span<WaitHandle> alsoWait = new WaitHandle[2];
 			alsoWait[0] = waitForClient;
+			alsoWait[1] = onServerClosed;
 
 			while (true)
 			{
@@ -90,16 +124,18 @@ namespace StarComputer.Server
 
 				var index = mainThreadDispatcher.WaitHandles(alsoWait);
 
-				if (index == ThreadDispatcherStatic.ClosedIndex)
+				if (index == ThreadDispatcherStatic.ClosedIndex || index == 1)
 				{
 					logger.Log(LogLevel.Information, CloseSignalRecivedID, "Server has recived close signal, closing");
 
+					IsListening = false;
+
 					connectionListener.Stop();
 					try { clientTask.Wait(); } catch (Exception) { }
+
 					return;
 				}
-
-				if (index == 0)
+				else if (index == 0)
 				{
 					var rawClient = clientTask.Result;
 					clientTask = connectionListener.AcceptTcpClientAsync().ContinueWith(s => { waitForClient.Set(); return s.Result; });
@@ -280,7 +316,7 @@ namespace StarComputer.Server
 
 		public void Close()
 		{
-			mainThreadDispatcher.Close();
+			onServerClosed.Set();
 		}
 
 		public IEnumerable<ServerSideClient> ListClients()

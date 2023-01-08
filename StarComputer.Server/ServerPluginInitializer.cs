@@ -10,10 +10,10 @@ namespace StarComputer.Server
 		private readonly IServer server;
 		private readonly ICommandRepositoryBuilder commandsBuilder;
 		private readonly IBodyTypeResolverBuilder resolverBuilder;
-		private readonly TUI ui;
+		private readonly IUIContextFactory<TUI> ui;
 
 
-		public ServerPluginInitializer(IServer server, ICommandRepositoryBuilder commandsBuilder, IBodyTypeResolverBuilder resolverBuilder, TUI ui)
+		public ServerPluginInitializer(IServer server, ICommandRepositoryBuilder commandsBuilder, IBodyTypeResolverBuilder resolverBuilder, IUIContextFactory<TUI> ui)
 		{
 			this.server = server;
 			this.commandsBuilder = commandsBuilder;
@@ -31,7 +31,7 @@ namespace StarComputer.Server
 					resolverBuilder.SetupDomain(plugin.Domain);
 					commandsBuilder.BeginPluginInitalize(plugin);
 
-					plugin.InitializeAndBuild(new ServerProtocolEnvironment(server), ui, commandsBuilder, resolverBuilder);
+					plugin.InitializeAndBuild(new ServerProtocolEnvironment(server), ui.CreateContext(plugin), commandsBuilder, resolverBuilder);
 
 					commandsBuilder.EndPluginInitalize();
 				}

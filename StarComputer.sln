@@ -35,6 +35,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Common.Abstrac
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.UI.Avalonia", "StarComputer.UI.Avalonia\StarComputer.UI.Avalonia.csproj", "{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Server.UI.Avalonia", "StarComputer.Server.UI.Avalonia\StarComputer.Server.UI.Avalonia.csproj", "{705E11F2-E2DA-4209-8CE8-5DDD682A411C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -163,6 +165,14 @@ Global
 		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Release|x64.ActiveCfg = Release|Any CPU
 		{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}.Release|x64.Build.0 = Release|Any CPU
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Debug|x64.ActiveCfg = Debug|x64
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Debug|x64.Build.0 = Debug|x64
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Release|x64.ActiveCfg = Release|Any CPU
+		{705E11F2-E2DA-4209-8CE8-5DDD682A411C}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

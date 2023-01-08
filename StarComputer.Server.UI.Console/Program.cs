@@ -68,7 +68,7 @@ var pluginLoader = services.GetRequiredService<IPluginLoader>();
 var commandRepositoryBuilder = new CommandRespositoryBuilder();
 var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 
-var pluginInitializer = new ServerPluginInitializer<IConsoleUIContext>(server, commandRepositoryBuilder, bodyTypeResolverBuilder, ui);
+var pluginInitializer = new ServerPluginInitializer<IConsoleUIContext>(server, commandRepositoryBuilder, bodyTypeResolverBuilder, new ConsoleUIContextGugFactory(ui));
 
 await plugins.InitializeStoreAsync(pluginLoader);
 plugins.InitalizePlugins(pluginInitializer);
@@ -76,4 +76,5 @@ plugins.InitalizePlugins(pluginInitializer);
 commandRepositoryBuilder.BakeToRepository(services.GetRequiredService<ICommandRepository>());
 bodyTypeResolverBuilder.BakeToResolver(services.GetRequiredService<IBodyTypeResolver>());
 
-server.Listen(plugins);
+server.ListenAsync().AsTask().Equals(null);
+server.MainLoop(plugins);
