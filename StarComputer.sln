@@ -4,8 +4,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.2.32630.192
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Server", "StarComputer.Server\StarComputer.Server.csproj", "{F549F1FD-A2DB-41DB-A43F-38C114270B65}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6} = {C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Client", "StarComputer.Client\StarComputer.Client.csproj", "{FF3EDB88-6AFC-42A0-AB1A-D086E0984089}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C772FCFE-D4DF-4376-A5D7-91F8762EE5F6} = {C772FCFE-D4DF-4376-A5D7-91F8762EE5F6}
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Client.Abstractions", "StarComputer.Client.Abstractions\StarComputer.Client.Abstractions.csproj", "{3CF04881-39E0-4D4C-815F-EFB390726C44}"
 EndProject
@@ -33,9 +39,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Common.Abstrac
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Common.Abstractions.Plugins.UI.HTML", "StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj", "{E5A2ECAE-4654-449C-9D22-9FB482012CBF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.UI.Avalonia", "StarComputer.UI.Avalonia\StarComputer.UI.Avalonia.csproj", "{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.UI.Avalonia", "StarComputer.UI.Avalonia\StarComputer.UI.Avalonia.csproj", "{8A43F8E9-28CA-4E63-9121-4C70DF211CB7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarComputer.Server.UI.Avalonia", "StarComputer.Server.UI.Avalonia\StarComputer.Server.UI.Avalonia.csproj", "{705E11F2-E2DA-4209-8CE8-5DDD682A411C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Server.UI.Avalonia", "StarComputer.Server.UI.Avalonia\StarComputer.Server.UI.Avalonia.csproj", "{705E11F2-E2DA-4209-8CE8-5DDD682A411C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

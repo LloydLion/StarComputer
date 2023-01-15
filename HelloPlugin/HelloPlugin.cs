@@ -55,8 +55,24 @@ namespace HelloPlugin
 			}
 			else if (uiContext is IHTMLUIContext htmlUI)
 			{
-				htmlUI.LoadHTMLPage("demo.html", new());
-				htmlUI.SetJSPluginContext(htmlUIContext);
+				if (protocolEnviroment is IClientProtocolEnviroment client)
+				{
+					client.ClientConnected += () =>
+					{
+						htmlUI.LoadHTMLPage("demo.html", new());
+						htmlUI.SetJSPluginContext(htmlUIContext);
+					};
+
+					client.ClientDisconnected += () =>
+					{
+						htmlUI.LoadEmptyPage();
+					};
+				}
+				else
+				{
+					htmlUI.LoadHTMLPage("demo.html", new());
+					htmlUI.SetJSPluginContext(htmlUIContext);
+				}
 			}
 			else throw new NotSupportedException("HelloPlugin doesn't support UI context of type " + uiContext.GetType().FullName);
 		}
@@ -74,8 +90,14 @@ namespace HelloPlugin
 				{
 					var clients = server.Server.ListClients().Where(s => s.ProtocolAgent != messageContext.Agent);
 
-					foreach (var client in clients)
-						await client.ProtocolAgent.SendMessageAsync(message);
+					try
+					{
+						await Task.WhenAll(clients.Select(client => client.ProtocolAgent.SendMessageAsync(message)));
+					}
+					catch (Exception)
+					{
+						
+					}
 				}
 
 
@@ -122,8 +144,16 @@ namespace HelloPlugin
 
 			if (Protocol is IServerProtocolEnvironment server)
 			{
-				foreach (var client in server.Server.ListClients())
-					await client.ProtocolAgent.SendMessageAsync(message);
+				var clients = server.Server.ListClients();
+
+				try
+				{
+					await Task.WhenAll(clients.Select(client => client.ProtocolAgent.SendMessageAsync(message)));
+				}
+				catch (Exception)
+				{
+
+				}
 			}
 			else if (Protocol is IClientProtocolEnviroment client)
 			{

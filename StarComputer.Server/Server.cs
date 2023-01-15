@@ -321,8 +321,7 @@ namespace StarComputer.Server
 
 		public IEnumerable<ServerSideClient> ListClients()
 		{
-			foreach (var agent in agents)
-				yield return new ServerSideClient(agent.Value.ConnectionInformation, agent.Key);
+			return agents.Select(agent => new ServerSideClient(agent.Value.ConnectionInformation, agent.Key)).ToArray();
 		}
 
 		public ServerSideClient GetClientByAgent(IRemoteProtocolAgent protocolAgent)

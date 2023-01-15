@@ -88,7 +88,7 @@ namespace StarComputer.Common.Protocol
 					{
 						var queue = workThreadDispatcher.GetQueue();
 						foreach (var task in queue)
-							task.Task.SetResult();
+							task.Task.SetException(new Exception("Protocol agent closed"));
 						return;
 					}
 					else if (index == ThreadDispatcherStatic.TimeoutIndex)

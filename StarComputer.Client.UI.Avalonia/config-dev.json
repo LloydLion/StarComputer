@@ -6,8 +6,8 @@
 
 	"Connection":
 	{
-		"Locked": false,
-		"LoginLocked": false,
+		"Locked": true,
+		"LoginLocked": true,
 		"IP": "127.0.0.1",
 		"Port": 623,
 		"Password": "DEBUG PASSWORD",

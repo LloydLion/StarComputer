@@ -2,6 +2,8 @@
 {
 	public interface IHTMLUIContext : IUIContext
 	{
+		public HTMLPageLoadResult LoadEmptyPage();
+
 		public HTMLPageLoadResult LoadHTMLPage(string resourceName, PageConstructionBag constructionBag);
 
 		public dynamic? ExecuteJavaScriptFunction(string functionName, params string[] arguments);

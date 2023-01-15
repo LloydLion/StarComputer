@@ -36,6 +36,14 @@ namespace StarComputer.UI.Avalonia
 		public event EventHandler? JSContextChanged;
 
 
+		public HTMLPageLoadResult LoadEmptyPage()
+		{
+			Address = null;
+			NewPageLoaded?.Invoke(this, EventArgs.Empty);
+
+			return new();
+		}
+
 		public HTMLPageLoadResult LoadHTMLPage(string resourceName, PageConstructionBag constructionBag)
 		{
 			string document;

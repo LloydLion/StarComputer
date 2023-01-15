@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Threading;
 using StarComputer.UI.Avalonia;
 using System;
 
@@ -14,7 +15,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public MainWindowViewModel(IServiceProvider services)
 		{
-			var browserViewModel = new BrowserViewModel(services.GetRequiredService<HTMLUIManager>());
+			var browserViewModel = new BrowserViewModel(services.GetRequiredService<HTMLUIManager>(), services.GetRequiredService<IThreadDispatcher<Action>>());
 			var connectionViewModel = new ConnectionViewModel(services.GetRequiredService<IClient>(), services.GetRequiredService<IOptions<ConnectionViewModel.Options>>());
 			var pluginSelectorViewModel = new PluginSelectorViewModel(services.GetRequiredService<HTMLUIManager>(), services.GetRequiredService<IPluginStore>());
 

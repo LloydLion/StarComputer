@@ -51,7 +51,7 @@ namespace StarComputer.UI.Avalonia
 						var browser = GetBrowser(ctx.Plugin);
 
 						if (ctx.JSContext is not null)
-							browser.RegisterJavascriptObject(ctx.JSContext, JSContextFieldName);
+							browser.RegisterJavascriptObject(ctx.JSContext, JSContextFieldName, Context.AsyncCallNativeMethod);
 						else browser.UnregisterJavascriptObject(JSContextFieldName);
 					}
 				}
@@ -65,7 +65,7 @@ namespace StarComputer.UI.Avalonia
 				browser.Address = ctx.Value.Address ?? "file:///gugpage.html";
 
 				if (ctx.Value.JSContext is not null)
-					browser.RegisterJavascriptObject(ctx.Value.JSContext, JSContextFieldName);
+					browser.RegisterJavascriptObject(ctx.Value.JSContext, JSContextFieldName, Context.AsyncCallNativeMethod);
 			}
 
 

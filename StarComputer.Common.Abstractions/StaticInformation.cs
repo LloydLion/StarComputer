@@ -1,11 +1,13 @@
-﻿namespace StarComputer.Common.Abstractions
+﻿#define DISABLE_LONG_TIMEOUTS
+
+namespace StarComputer.Common.Abstractions
 {
 	public static class StaticInformation
 	{
 		public const int ConnectionPort = 623;
 		public static readonly PortRange OperationsPortRange = new(624, 644);
 
-#if DEBUG
+#if DEBUG && !DISABLE_LONG_TIMEOUTS
 		public const int ClientConnectTimeout = ServerReconnectionPrepareTimeout + 120000;
 		public const int ClientMessageSendTimeout = 30000;
 		public const int ServerReconnectionPrepareTimeout = 5000;
