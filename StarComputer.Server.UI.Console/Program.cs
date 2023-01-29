@@ -19,6 +19,8 @@ using StarComputer.Common.Plugins.Loading;
 using StarComputer.Common.Abstractions.Plugins.Loading;
 using StarComputer.Common.Protocol.Bodies;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
+using StarComputer.Common.Abstractions.Plugins.Resources;
+using StarComputer.Common.Plugins.Resources;
 
 var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile(
 #if DEBUG
@@ -38,12 +40,14 @@ var services = new ServiceCollection()
 		s.Interface = IPAddress.Parse(config.GetSection("Server").GetValue<string>(nameof(s.Interface))!);
 	})
 	.Configure<ReflectionPluginLoader.Options>(s => s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!)
+	.Configure<ResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 
 	.AddSingleton<IServer, Server>()
 
 	.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
 	.AddTransient<IClientApprovalAgent, GugApprovalAgent>()
 	.AddTransient<IConsoleUIContext, ConsoleUIContext>()
+	.AddSingleton<IResourcesCatalog, ResourcesCatalog>()
 
 	.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 

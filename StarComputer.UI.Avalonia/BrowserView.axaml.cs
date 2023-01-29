@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Newtonsoft.Json;
 using StarComputer.Common.Abstractions.Plugins;
 using System.Diagnostics.CodeAnalysis;
 using System.Dynamic;
@@ -70,11 +71,14 @@ namespace StarComputer.UI.Avalonia
 
 
 			Context.SetJavaScriptExecutor(ExecuteJavaScript);
+
+			Context.InitializePostUI();
 		}
 
-		private dynamic? ExecuteJavaScript(IPlugin caller, string functionName, string[] arguments)
+		private dynamic? ExecuteJavaScript(IPlugin caller, string functionName, object[] arguments)
 		{
-			var code = $"{functionName}({string.Join(", ", arguments)});";
+			var jsonArgs = arguments.Select(s => JsonConvert.SerializeObject(s)).ToArray();
+			var code = $"{functionName}({string.Join(", ", jsonArgs)});";
 			return GetBrowser(caller).EvaluateJavaScript<ExpandoObject>(code).Result;
 		}
 

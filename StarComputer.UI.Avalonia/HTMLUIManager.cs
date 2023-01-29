@@ -13,7 +13,7 @@ namespace StarComputer.UI.Avalonia
 		private JavaScriptExecutor? executor;
 
 
-		public delegate dynamic? JavaScriptExecutor(IPlugin caller, string functionName, string[] arguments);
+		public delegate dynamic? JavaScriptExecutor(IPlugin caller, string functionName, object[] arguments);
 
 
 		public IPlugin? ActivePlugin
@@ -73,7 +73,7 @@ namespace StarComputer.UI.Avalonia
 			this.executor = executor;
 		}
 
-		public dynamic? ExecuteJavaScript(IPlugin caller, string functionName, params string[] arguments)
+		public dynamic? ExecuteJavaScript(IPlugin caller, string functionName, params object[] arguments)
 		{
 			if (executor is null)
 				throw new NullReferenceException("JavaScript executor was null");
@@ -86,6 +86,11 @@ namespace StarComputer.UI.Avalonia
 		private void OnNewPageLoaded(object? sender, EventArgs _) =>
 			ContextChanged?.Invoke(ContextChangingType.AddressChanged, (HTMLUIContext?)sender);
 
+		public void InitializePostUI()
+		{
+			foreach (var context in contexts)
+				context.Value.InitializePostUI();
+		}
 
 		public enum ContextChangingType
 		{

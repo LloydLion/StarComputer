@@ -16,5 +16,11 @@
 		{
 			"PluginDirectories": "plugins"
 		}
+	},
+
+	"Resources":
+	{
+		"Path": "resources",
+		"TemporalFileName": "temporal.starcomputer"
 	}
 }

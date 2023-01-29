@@ -21,7 +21,7 @@ namespace StarComputer.Common.Plugins.Resources
 			if (managers.ContainsKey(plugin)) return managers[plugin];
 			else
 			{
-				var manager = new ResourcesManager(Path.Combine(options.Path, plugin.Domain), plugin);
+				var manager = new ResourcesManager(Path.Combine(options.Path, plugin.Domain), plugin, options.TemporalFileName);
 				managers.Add(plugin, manager);
 				return manager;
 			}
@@ -31,6 +31,8 @@ namespace StarComputer.Common.Plugins.Resources
 		public class Options
 		{
 			public string Path { get; set; } = "resources";
+
+			public string TemporalFileName { get; set; } = "temporal.starcomputer";
 		}
 	}
 }

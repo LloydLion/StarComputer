@@ -26,6 +26,7 @@
 
 	"Resources":
 	{
-		"Path": "../../../../resources"
+		"Path": "../../../../resources",
+		"TemporalFileName": "temporal.client.starcomputer"
 	}
 }

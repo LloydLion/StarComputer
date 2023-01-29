@@ -35,6 +35,8 @@ namespace StarComputer.UI.Avalonia
 
 		public event EventHandler? JSContextChanged;
 
+		public event Action? OnUIPostInitialized;
+
 
 		public HTMLPageLoadResult LoadEmptyPage()
 		{
@@ -50,15 +52,22 @@ namespace StarComputer.UI.Avalonia
 			if (pageConstructor is null)
 			{
 				using var reader = new StreamReader(resources.OpenRead(resourceName));
-				document = reader.ReadToEnd();
+				var documentBuilder = new StringBuilder(reader.ReadToEnd());
+
+				foreach (var argument in constructionBag.ConstructionArguments)
+					documentBuilder.Replace($"{{{{{argument.Key}}}}}", argument.Value);
+
+				document = documentBuilder.ToString();
 			}
 			else document = pageConstructor.ConstructHTMLPage(resourceName, constructionBag);
 
-			using var temporalFile = resources.OpenTemporalFile("HTML");
-			var writer = new StreamWriter(temporalFile) { AutoFlush = true };
-			writer.Write(document);
+			using (var temporalFile = resources.OpenTemporalFile("HTML"))
+			{
+				var writer = new StreamWriter(temporalFile) { AutoFlush = true };
+				writer.Write(document);
+				Address = FilePathToFileUrl(temporalFile.Name);
+			}
 
-			Address = FilePathToFileUrl(temporalFile.Name);
 			NewPageLoaded?.Invoke(this, EventArgs.Empty);
 
 			return new();
@@ -75,7 +84,7 @@ namespace StarComputer.UI.Avalonia
 			this.pageConstructor = pageConstructor;
 		}
 
-		public dynamic? ExecuteJavaScriptFunction(string functionName, params string[] arguments)
+		public dynamic? ExecuteJavaScriptFunction(string functionName, params object[] arguments)
 		{
 			return owner.ExecuteJavaScript(plugin, functionName, arguments);
 		}
@@ -99,6 +108,11 @@ namespace StarComputer.UI.Avalonia
 				uri.Insert(0, "file:///");
 
 			return uri.ToString();
+		}
+
+		public void InitializePostUI()
+		{
+			OnUIPostInitialized?.Invoke();
 		}
 	}
 }

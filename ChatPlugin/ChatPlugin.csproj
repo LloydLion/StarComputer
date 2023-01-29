@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <BaseOutputPath>..\build\plugins\$(MSBuildProjectName)</BaseOutputPath>
+    <Platforms>AnyCPU;x64</Platforms>
+    <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj" />
+    <ProjectReference Include="..\StarComputer.PluginDevelopmentKit\StarComputer.PluginDevelopmentKit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="resources\Chat\client.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="resources\Chat\server.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="mkdir &quot;$(ProjectDir)../build/resources&quot;&#xD;&#xA;xcopy &quot;$(ProjectDir)$(OutDir)resources&quot; &quot;$(ProjectDir)../build/resources&quot; /S /Y /R" />
+  </Target>
+
+</Project>
