@@ -69,7 +69,6 @@ namespace StarComputer.UI.Avalonia
 					browser.RegisterJavascriptObject(ctx.Value.JSContext, JSContextFieldName, Context.AsyncCallNativeMethod);
 			}
 
-
 			Context.SetJavaScriptExecutor(ExecuteJavaScript);
 
 			Context.InitializePostUI();

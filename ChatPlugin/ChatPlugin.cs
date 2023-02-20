@@ -8,9 +8,12 @@ using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Server.Abstractions;
 using System.Buffers;
+using System.Collections;
 using System.Net.Mime;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace ChatPlugin
 {
@@ -20,6 +23,7 @@ namespace ChatPlugin
 		private IProtocolEnvironment? protocol = null;
 		private IHTMLUIContext? ui = null;
 		private readonly HTMLContext html;
+		private readonly Dictionary<string, TaskCompletionSource<(FileMetadata?, byte[]?)>> fileWaits = new();
 
 
 		public ChatPlugin()
@@ -47,6 +51,11 @@ namespace ChatPlugin
 			resolverBuilder.RegisterAllias(typeof(ChatResponce), "chatResponce");
 			resolverBuilder.RegisterAllias(typeof(NewMessage), "newMessage");
 
+			resolverBuilder.RegisterAllias(typeof(FileRequest), "fileRequest");
+			resolverBuilder.RegisterAllias(typeof(FileRequestResponce), "fileRequestResponce");
+			resolverBuilder.RegisterAllias(typeof(UploadFileRequest), "uploadFileRequest");
+
+
 			ui = (IHTMLUIContext)uiContext;
 			protocol = protocolEnviroment;
 
@@ -66,6 +75,9 @@ namespace ChatPlugin
 				client.ClientDisconnected += () =>
 				{
 					UI.LoadEmptyPage();
+
+					foreach (var el in fileWaits)
+						el.Value.SetException(new Exception("Connection closed"));
 				};
 			}
 			else
@@ -119,6 +131,21 @@ namespace ChatPlugin
 				else if (message.Body is NewMessage msg)
 				{
 					UI.ExecuteJavaScriptFunction("visualizeMessageCS", new MessageUIDTO(msg.Message));
+				}
+				else if (message.Body is FileRequestResponce frr)
+				{
+					if (fileWaits.TryGetValue(frr.RequestedUUID, out var task))
+					{
+						byte[]? data = null;
+						if (frr.AttachmentName is not null)
+						{
+							var attachment = message.Attachments?[frr.AttachmentName] ?? throw new NullReferenceException();
+							var stream = new MemoryStream(attachment.Length);
+							await attachment.CopyDelegate(stream);
+						}
+
+						task.SetResult((frr.File, data));
+					}
 				}
 			}
 		}
@@ -183,6 +210,53 @@ namespace ChatPlugin
 			else throw new Exception("Server side method only");
 		}
 
+		private Task<(FileMetadata?, byte[]?)> AwaitForFile(string fileUUID)
+		{
+			var task = new TaskCompletionSource<(FileMetadata?, byte[]?)>();
+			fileWaits.Add(fileUUID, task);
+			return task.Task;
+		}
+
+		private static async Task<(FileMetadata?, byte[]?)> GetFileServerSideAsync(string uuid)
+		{
+			var file = GetFileMetadataServerSide(uuid);
+			if (file is null) return (null, null);
+			using var stream = File.OpenRead(constructFileName(file));
+			var buffer = new byte[stream.Length];
+			await stream.ReadAsync(buffer);
+			return (file, buffer);
+
+			static string constructFileName(FileMetadata file)
+			{
+				var dirPath = Path.Combine("chat", "files");
+				if (Directory.Exists(dirPath) == false)
+					Directory.CreateDirectory(dirPath);
+
+				return Path.Combine(dirPath, $"{file.UUID}.{file.Name}.{file.Extension}");
+			}
+		}
+
+		private static FileMetadata? GetFileMetadataServerSide(string uuid)
+		{
+			var dirPath = Path.Combine("chat", "files");
+			if (Directory.Exists(dirPath) == false) return null;
+
+			var fileName = Directory.GetFiles(dirPath).FirstOrDefault(s => Path.GetFileName(s).StartsWith(uuid));
+			if (fileName is null) return null;
+			var splits = fileName.Split('.');
+			return new(splits[1], splits[2]) { UUID = uuid };
+		}
+
+		private async Task UploadFileServerSideAsync(FileMetadata metadata, byte[] bytes)
+		{
+			var dirPath = Path.Combine("chat", "files");
+			if (Directory.Exists(dirPath) == false)
+				Directory.CreateDirectory(dirPath);
+
+			var fileName = Path.Combine(dirPath, $"{metadata.UUID}.{metadata.Name}.{metadata.Extension}");
+			await File.WriteAllBytesAsync(fileName, bytes);
+		}
+
 
 		private class HTMLContext
 		{
@@ -221,6 +295,73 @@ namespace ChatPlugin
 				}
 				catch (Exception) { }
 			}
+
+
+			public record FileData(int[] Data, int RealLength);
+
+			public async Task<FileData> GetFileBinaries(string uuid)
+			{
+				byte[] bytes;
+
+				if (owner.Protocol is IClientProtocolEnviroment client)
+				{
+					var request = new FileRequest(uuid, requireBinaries: true);
+					var message = new ProtocolMessage(owner.Domain, request, null, null);
+					await client.Client.GetServerAgent().SendMessageAsync(message);
+
+					var (_, rbytes) = await owner.AwaitForFile(uuid);
+					bytes = rbytes ?? throw new Exception("File with given UUID doesn't exist");
+				}
+				else
+				{
+					var (_, rbytes) = await GetFileServerSideAsync(uuid);
+					bytes = rbytes ?? throw new Exception("File with given UUID doesn't exist");
+				}
+
+				var ints = new int[bytes.Length % 4 == 0 ? bytes.Length / 4 : (bytes.Length / 4) + 1];
+				Buffer.BlockCopy(bytes, 0, ints, 0, bytes.Length);
+				return new FileData(ints, bytes.Length);
+			}
+
+			public async Task<FileMetadata> GetFileMetadata(string uuid)
+			{
+				if (owner.Protocol is IClientProtocolEnviroment client)
+				{
+					var request = new FileRequest(uuid, requireBinaries: false);
+					var message = new ProtocolMessage(owner.Domain, request, null, null);
+					await client.Client.GetServerAgent().SendMessageAsync(message);
+
+					var (metadata, bytes) = await owner.AwaitForFile(uuid);
+					return metadata ?? throw new Exception("File with given UUID doesn't exist");
+				}
+				else
+				{
+					return GetFileMetadataServerSide(uuid) ?? throw new Exception("File with given UUID doesn't exist");
+				}
+			}
+
+			public async Task<string> UploadFile(string name, string extension, int[] intBytes, int realLength)
+			{
+				byte[] bytes = new byte[realLength];
+				Buffer.BlockCopy(intBytes, 0, bytes, 0, realLength);
+
+				if (owner.Protocol is IClientProtocolEnviroment client)
+				{
+					var messageFile = new FileMetadata(name, extension);
+					var request = new UploadFileRequest(messageFile, "file");
+					var message = new ProtocolMessage(owner.Domain, request, new[] { new ProtocolMessage.Attachment("file", async stream => await stream.WriteAsync(bytes), bytes.Length) }, null);
+
+					await client.Client.GetServerAgent().SendMessageAsync(message);
+
+					return messageFile.UUID;
+				}
+				else
+				{
+					var newMeta = new FileMetadata(name, extension);
+					await owner.UploadFileServerSideAsync(newMeta, bytes);
+					return newMeta.UUID;
+				}
+			}
 		}
 
 		private class ChatRequest { }
@@ -249,6 +390,62 @@ namespace ChatPlugin
 				Url,
 				File
 			}
+		}
+
+		private class UploadFileRequest
+		{
+			public UploadFileRequest(FileMetadata file, string attachmentName)
+			{
+				File = file;
+				AttachmentName = attachmentName;
+			}
+
+
+			public FileMetadata File { get; }
+
+			public string AttachmentName { get; }
+		}
+
+		private class FileRequestResponce
+		{
+			public FileRequestResponce(FileMetadata file, string? attachmentName = null)
+			{
+				File = file;
+				RequestedUUID = file.UUID;
+				AttachmentName = attachmentName;
+			}
+
+			public FileRequestResponce(string requestedUUID)
+			{
+				RequestedUUID = requestedUUID;
+				AttachmentName = null;
+			}
+
+
+			public string RequestedUUID { get; }
+
+			public FileMetadata? File { get; }
+
+			public string? AttachmentName { get; }
+		}
+
+		private class FileRequest
+		{
+			public FileRequest(string uuid, bool requireBinaries)
+			{
+				UUID = uuid;
+				RequireBinaries = requireBinaries;
+			}
+
+
+			public string UUID { get; }
+
+			public bool RequireBinaries { get; }
+		}
+
+		private record FileMetadata(string Name, string Extension)
+		{
+			public string UUID { get; init; } = Guid.NewGuid().ToString();
 		}
 
 		private class MessageUIDTO

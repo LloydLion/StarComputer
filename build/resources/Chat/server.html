@@ -17,16 +17,12 @@
 		<br/>
 		<input type="input" id="textBox"/>
 		<button onClick="sendMessage()">Send message</button>
+		<button onClick="uploadFile()">Upload</button>
 
 		<script type="text/javascript">
-			var messages = {Broadcast:[]};
+			var messages = {Broadcast:{{InitialMessages}}};
 			var selectedPage = "Broadcast";
-
-			const initialMessages = {{InitialMessages}};
-			for (var i = 0; i < initialMessages.length; i++)
-			{
-				visualizeMessageSS("Broadcast", initialMessages[i]);
-			}
+			reloadList();
 
 
 			function visualizeMessageSS(page, message)
@@ -50,13 +46,37 @@
 
 				for (var i = 0; i < messagesList.length; i++)
 				{
-					var message = messagesList[i];
-
 					const li = document.createElement("li");
 					const div = document.createElement("div");
 					const br = document.createElement("br");
 
-					div.append("||" + message.Type + "|| " + message.Author + ": " + message.Content);
+					var message = messagesList[i];
+
+					if (message.Type == 0)
+					{
+						div.append("" + message.Author + ": " + message.Content);
+					}
+					else if (message.Type == 1)
+					{
+						var downloadBtn = document.createElement("button");
+						downloadBtn.append(message.Content);
+						downloadBtn.addEventListener("click", async function()
+						{
+							var fileData = await context.getFileBinaries(message.Content);
+							var intsArray = fileData.data;
+							var buffer = new ArrayBuffer(fileData.realLength);
+							new Uint8Array(buffer).set(new Uint8Array(intsArray));
+							alert(fileData.realLength);
+							await save(buffer);
+							alert("OK");
+						});
+
+						div.append(downloadBtn);
+					}
+					else
+					{
+						div.append("Invalid message type");
+					}
 
 					li.append(div);
 					list.append(li);
@@ -101,6 +121,62 @@
 						parent.removeChild(parent.firstChild);
 				}
 			}
+
+			function uploadFile()
+			{
+				var input = document.createElement("input");
+				input.type = "file";
+
+				input.onchange = e =>
+				{
+					var file = e.target.files[0];
+					var reader = new FileReader();
+
+					reader.onload = async re =>
+					{
+						var lastIndexOfDot = file.name.lastIndexOf('.');
+						var extension = file.name.substr(lastIndexOfDot + 1);
+						var filename = file.name.substr(0, lastIndexOfDot);
+
+						var result = re.target.result;
+						var uint8Array = Array.from(new Int32Array(copy4ceil(result)));
+
+						var uuid = await context.uploadFile(filename, extension, uint8Array, result.byteLength);
+
+						const reciver = selectedPage == "Broadcast" ? null : selectedPage.substring(1);
+						await context.sendMessage(reciver, uuid, 1);
+						visualizeMessageSS(selectedPage, { Author: "You", Content: uuid, Type: 1 });
+					};
+
+					reader.readAsArrayBuffer(file);
+				};
+
+				input.click();
+			}
+
+			function copy4ceil(src)
+			{
+					var dst = new ArrayBuffer(Math.ceil(src.byteLength / 4) * 4);
+					new Uint8Array(dst).set(new Uint8Array(src));
+					return dst;
+			}
+
+			async function save(data)
+			{
+				const fileHandle = await window.showSaveFilePicker();
+				alert("1");
+				const fileStream = await fileHandle.createWritable();
+				alert("2");
+
+				var blob = new Blob([new UInt8Array(data)], {type: "application/octet-stream"});
+
+				alert(blob);
+				alert("3");
+				await fileStream.write(blob);
+				alert("4");
+				await fileStream.close();
+			}
+
 		</script>
 	</body>
 </html>

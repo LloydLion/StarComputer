@@ -1,4 +1,4 @@
-﻿<html>
+<html>
 	<head>
 
 	</head>
@@ -14,7 +14,7 @@
 		<button onClick="uploadFile()">Upload</button>
 
 		<script type="text/javascript">
-			const initialMessages = {{InitialMessages}};
+			const initialMessages = [{"Author":"/Some login 1","Content":"d","Type":0}];
 			for (var i = 0; i < initialMessages.length; i++)
 			{
 				visualizeMessageCS(initialMessages[i]);
@@ -37,19 +37,15 @@
 					button.append(message.Content);
 					button.addEventListener("click", async function()
 					{
-							var fileData = await context.getFileBinaries(message.Content);
-							var intsArray = fileData.data;
-							var buffer = new ArrayBuffer(fileData.realLength);
-							new Uint8Array(buffer).set(new Uint8Array(intsArray));
+						var buffer = await context.getFileBinaries(message.Content);
+						var blob = new Blob(buffer);
+						var url = window.URL.createObjectUrl(blob);
 
-							var blob = new Blob(buffer);
-							var url = window.URL.createObjectUrl(blob);
-
-							var a = document.createElement("a");
-							a.href = url;
-							a.download = "some file";
-							a.click();
-							URL.revokeObjectURL();
+						var a = document.createElement("a");
+						a.href = url;
+						a.download = "some file";
+						a.click();
+						URL.revokeObjectURL();
 					});
 				}
 				else

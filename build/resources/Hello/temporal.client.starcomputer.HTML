@@ -1,0 +1,29 @@
+<h1>Chat</h1>
+<ul id="messages">
+</ul>
+<br/>
+<br/>
+<input type="input" id="textBox"/>
+<button onClick="sendMessage()">Send message</button>
+
+<script type="text/javascript">	
+	async function sendMessage()
+	{
+		const textbox = document.getElementById("textBox");
+		await context.sendMessage(textbox.value);
+		showMessage("-> " + textbox.value);
+		textbox.value = "";
+	}
+
+	function showMessage(message)
+	{
+		const list = document.getElementById("messages");
+		const li = document.createElement("li");
+		const br = document.createElement("br");
+
+		li.append(message);
+
+		list.append(li);
+		list.append(br);
+	}
+</script>
