@@ -1,13 +1,17 @@
-﻿namespace StarComputer.Server.Abstractions
+﻿using StarComputer.Common.Abstractions.Plugins.Loading;
+using StarComputer.Server.Abstractions;
+using StarComputer.Server.Abstractions.Plugins;
+
+namespace StarComputer.Server
 {
 	public class ServerProtocolEnvironment : IServerProtocolEnvironment
 	{
-		public ServerProtocolEnvironment(IServer server)
+		public ServerProtocolEnvironment(IServer server, PluginLoadingProto loadingProto)
 		{
-			Server = server;
+			Server = new PluginServer(server, loadingProto.Domain);
 		}
 
 
-		public IServer Server { get; }
+		public IPluginServer Server { get; }
 	}
 }

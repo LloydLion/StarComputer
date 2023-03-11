@@ -1,22 +1,25 @@
-﻿using StarComputer.Common.Abstractions.Plugins;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Plugins.Loading;
 using StarComputer.Common.Abstractions.Plugins.Resources;
-using System;
-using System.Collections.Generic;
 
 namespace StarComputer.UI.Avalonia
 {
 	public class HTMLUIManager : IUIContextFactory<HTMLUIContext>
 	{
-		private readonly Dictionary<IPlugin, HTMLUIContext> contexts = new();
+		private readonly Dictionary<PluginDomain, HTMLUIContext> contexts = new();
 		private readonly IResourcesCatalog resources;
-		private IPlugin? activePlugin;
+		private readonly ILogger<HTMLUIManager> logger;
+		private readonly Options options;
+		private PluginDomain? activePlugin;
 		private JavaScriptExecutor? executor;
 
 
-		public delegate dynamic? JavaScriptExecutor(IPlugin caller, string functionName, object[] arguments);
+		public delegate dynamic? JavaScriptExecutor(PluginDomain caller, string functionName, object[] arguments);
 
 
-		public IPlugin? ActivePlugin
+		public PluginDomain? ActivePlugin
 		{
 			get => activePlugin;
 			private set
@@ -24,7 +27,7 @@ namespace StarComputer.UI.Avalonia
 				activePlugin = value;
 
 				if (activePlugin is not null)
-					ActiveContext = contexts[activePlugin];
+					ActiveContext = contexts[activePlugin.Value];
 				else ActiveContext = null;
 
 				ContextChanged?.Invoke(ContextChangingType.ActivePluginChanged, ActiveContext);
@@ -33,39 +36,43 @@ namespace StarComputer.UI.Avalonia
 
 		public HTMLUIContext? ActiveContext { get; private set; }
 
-		public IReadOnlyDictionary<IPlugin, HTMLUIContext> Contexts => contexts;
+		public IReadOnlyDictionary<PluginDomain, HTMLUIContext> Contexts => contexts;
 
 
-		public HTMLUIManager(IResourcesCatalog resources)
+		public HTMLUIManager(IResourcesCatalog resources, ILogger<HTMLUIManager> logger, IOptions<Options> options)
 		{
 			this.resources = resources;
+			this.logger = logger;
+			this.options = options.Value;
 		}
 
 
 		public event Action<ContextChangingType, HTMLUIContext?>? ContextChanged;
 
 
-		public HTMLUIContext CreateContext(IPlugin plugin)
+		public HTMLUIContext CreateContext(PluginLoadingProto plugin)
 		{
-			if (contexts.ContainsKey(plugin)) return contexts[plugin];
+			if (contexts.ContainsKey(plugin.Domain)) return contexts[plugin.Domain];
 			else
 			{
-				var context = new HTMLUIContext(this, plugin, resources.GetResourcesFor(plugin));
+				var context = new HTMLUIContext(this, plugin.Domain, resources.GetResourcesFor(plugin.Domain), logger, options.UniqueHttpPrefix, options.HttpPort);
 
 				context.JSContextChanged += OnJSContextChanged;
 				context.NewPageLoaded += OnNewPageLoaded;
 
-				contexts.Add(plugin, context);
+				contexts.Add(plugin.Domain, context);
+
+				context.Initialize();
 
 				return context;
 			}
 		}
 
-		public HTMLUIContext GetContext(IPlugin plugin) => contexts[plugin];
+		public HTMLUIContext GetContext(PluginDomain plugin) => contexts[plugin];
 
 		public void SwitchPlugin(IPlugin? plugin)
 		{
-			ActivePlugin = plugin;
+			ActivePlugin = plugin?.GetDomain();
 		}
 
 		public void SetJavaScriptExecutor(JavaScriptExecutor executor)
@@ -73,7 +80,7 @@ namespace StarComputer.UI.Avalonia
 			this.executor = executor;
 		}
 
-		public dynamic? ExecuteJavaScript(IPlugin caller, string functionName, params object[] arguments)
+		public dynamic? ExecuteJavaScript(PluginDomain caller, string functionName, params object[] arguments)
 		{
 			if (executor is null)
 				throw new NullReferenceException("JavaScript executor was null");
@@ -92,11 +99,20 @@ namespace StarComputer.UI.Avalonia
 				context.Value.InitializePostUI();
 		}
 
+
 		public enum ContextChangingType
 		{
 			ActivePluginChanged,
 			AddressChanged,
 			JSContextChanged
+		}
+
+
+		public class Options
+		{
+			public string UniqueHttpPrefix { get; set; } = "starComputer";
+
+			public int HttpPort { get; set; } = 7676;
 		}
 	}
 }

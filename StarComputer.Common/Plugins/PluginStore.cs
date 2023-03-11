@@ -23,17 +23,13 @@ namespace StarComputer.Common.Plugins
 		public int Count => IfInitialized(plugins.Count);
 
 
-		public void InitalizePlugins(IPluginInitializer initializer)
-		{
-			IfInitialized();
-			initializer.InitializePlugins(Values);
-		}
-
-		public async ValueTask InitializeStoreAsync(IPluginLoader loader)
+		public async ValueTask InitializeStoreAsync(IPluginLoader loader, IPluginInitializer initializer)
 		{
 			var data = await loader.LoadPluginsAsync();
 
-			foreach (var el in data) plugins.Add(el.Domain, el);
+			var plugins = initializer.InitializePlugins(data);
+
+			foreach (var el in plugins) this.plugins.Add(el.GetDomain(), el);
 
 			IsInitialized = true;
 		}

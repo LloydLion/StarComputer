@@ -2,6 +2,9 @@
 {
 	public interface IThreadDispatcher<TTask> where TTask : notnull
 	{
+		public bool IsWorking { get; }
+
+
 		public void DispatchTask(TTask task);
 
 		public bool ExecuteTask();

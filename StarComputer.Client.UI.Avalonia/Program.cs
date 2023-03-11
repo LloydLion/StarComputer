@@ -3,14 +3,9 @@ using Microsoft.Extensions.Configuration;
 using System.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using StarComputer.Client;
 using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
-using StarComputer.Common.Abstractions.Plugins.Commands;
-using StarComputer.Common.Abstractions.Plugins.UI.Console;
 using StarComputer.Common.Abstractions.Protocol;
-using StarComputer.Common.Plugins.Commands;
-using StarComputer.Common.Abstractions.Utils.Logging;
 using StarComputer.Common.Threading;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Plugins;
@@ -20,12 +15,9 @@ using StarComputer.Common.Protocol.Bodies;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
-using Avalonia.Controls;
 using ReactiveUI;
 using System.Net;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
-using System.Linq;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Plugins.Resources;
 using StarComputer.UI.Avalonia;
@@ -53,7 +45,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 			services = new ServiceCollection()
 				.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
-				.Configure<ResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
+				.Configure<FileResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 				.Configure<ReflectionPluginLoader.Options>(s =>
 				{
 					s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
@@ -72,23 +64,22 @@ namespace StarComputer.Client.UI.Avalonia
 						configSection.GetValue<string>("Password")!,
 						configSection.GetValue<string>("Login")!);
 				})
+				.Configure<HTMLUIManager.Options>(config.GetSection("HTMLPUI"))
 
 				.AddSingleton<IClient, Client>()
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
 				.AddSingleton<HTMLUIManager>()
-				.AddSingleton<IResourcesCatalog, ResourcesCatalog>()
+				.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
 
 				.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
-
-				.AddSingleton<ICommandRepository, CommandRepository>()
+				
 				.AddSingleton<IBodyTypeResolver, BodyTypeResolver>()
 
-				.AddSingleton<ICommandRepository, CommandRepository>()
 				.AddSingleton<IPluginLoader, ReflectionPluginLoader>()
 				.AddSingleton<IPluginStore, PluginStore>()
 
-				.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddFancyLogging())
+				.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddConsole().AddDebug())
 
 				.BuildServiceProvider();
 
@@ -101,15 +92,20 @@ namespace StarComputer.Client.UI.Avalonia
 
 			var plugins = lservices.GetRequiredService<IPluginStore>();
 			var pluginLoader = lservices.GetRequiredService<IPluginLoader>();
-			var commandRepositoryBuilder = new CommandRespositoryBuilder();
 			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 
-			var pluginInitializer = new ClientPluginInitializer<IHTMLUIContext>(client, commandRepositoryBuilder, bodyTypeResolverBuilder, uiManager);
+			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder);
+			pluginInitializer.SetServices((ps, proto) =>
+			{
+				ps.Register<IHTMLUIContext>(uiManager.CreateContext(proto));
 
-			plugins.InitializeStoreAsync(pluginLoader).AsTask().Wait();
-			plugins.InitalizePlugins(pluginInitializer);
+				var env = new ClientProtocolEnvironment(client, proto);
+				ps.Register<IClientProtocolEnviroment>(env);
+				ps.Register<IProtocolEnvironment>(env);
+			});
 
-			commandRepositoryBuilder.BakeToRepository(lservices.GetRequiredService<ICommandRepository>());
+			plugins.InitializeStoreAsync(pluginLoader, pluginInitializer).AsTask().Wait();
+
 			bodyTypeResolverBuilder.BakeToResolver(lservices.GetRequiredService<IBodyTypeResolver>());
 
 

@@ -1,51 +1,41 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
-using StarComputer.Common.Abstractions.Plugins.Commands;
 using StarComputer.Common.Abstractions.Plugins.Loading;
+using StarComputer.Common.Abstractions.Plugins.Protocol;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Server.Abstractions;
-using System.Buffers;
-using System.Collections;
-using System.Net.Mime;
-using System.Net.NetworkInformation;
 using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace ChatPlugin
 {
-	[Plugin]
+	[Plugin("Chat")]
 	public class ChatPlugin : IPlugin
 	{
-		private IProtocolEnvironment? protocol = null;
-		private IHTMLUIContext? ui = null;
 		private readonly HTMLContext html;
+		private readonly IProtocolEnvironment protocol;
+		private readonly IHTMLUIContext ui;
 		private readonly Dictionary<string, TaskCompletionSource<(FileMetadata?, byte[]?)>> fileWaits = new();
 
 
-		public ChatPlugin()
+		public ChatPlugin(IServiceProvider services)
 		{
 			html = new(this);
+
+			protocol = services.GetRequiredService<IProtocolEnvironment>();
+			ui = services.GetRequiredService<IHTMLUIContext>();
 		}
 
 
-		public string UserName => Protocol is IClientProtocolEnviroment client ? "/" + client.Client.GetConnectionConfiguration().Login : "Server";
-
-		public string Domain => "Chat";
-
-		public IReadOnlyCollection<Type> TargetUIContextTypes { get; } = new[] { typeof(IHTMLUIContext) };
+		public string UserName => protocol is IClientProtocolEnviroment client ? "/" + client.Client.GetConnectionConfiguration().Login : "Server";
 
 		public Version Version { get; } = Assembly.GetExecutingAssembly().GetName().Version!;
 
-		private IProtocolEnvironment Protocol => protocol!;
 
-		private IHTMLUIContext UI => ui!;
-
-
-		public void InitializeAndBuild(IProtocolEnvironment protocolEnviroment, IUIContext uiContext, ICommandRepositoryBuilder commandsBuilder, IBodyTypeResolverBuilder resolverBuilder)
+		public void Initialize(IBodyTypeResolverBuilder resolverBuilder)
 		{
 			resolverBuilder.RegisterAllias(typeof(ChatRequest), "chatRequest");
 			resolverBuilder.RegisterAllias(typeof(ChatResponce), "chatResponce");
@@ -55,26 +45,22 @@ namespace ChatPlugin
 			resolverBuilder.RegisterAllias(typeof(FileRequestResponce), "fileRequestResponce");
 			resolverBuilder.RegisterAllias(typeof(UploadFileRequest), "uploadFileRequest");
 
-
-			ui = (IHTMLUIContext)uiContext;
-			protocol = protocolEnviroment;
-
-			UI.LoadEmptyPage();
+			ui.LoadEmptyPage();
 
 			if (protocol is IClientProtocolEnviroment client)
 			{
-				client.ClientConnected += async () =>
+				client.Client.ClientConnected += async () =>
 				{
 					try
 					{
-						await client.Client.GetServerAgent().SendMessageAsync(new(Domain, new ChatRequest(), null, null));
+						await client.Client.GetServerAgent().SendMessageAsync(new(new ChatRequest(), null));
 					}
 					catch (Exception) { }
 				};
 
-				client.ClientDisconnected += () =>
+				client.Client.ClientDisconnected += () =>
 				{
-					UI.LoadEmptyPage();
+					ui.LoadEmptyPage();
 
 					foreach (var el in fileWaits)
 						el.Value.SetException(new Exception("Connection closed"));
@@ -85,14 +71,14 @@ namespace ChatPlugin
 				using var brFile = new StreamReader(OpenMessagesFile((string?)null));
 				var brMessages = JsonConvert.DeserializeObject<Message[]>(brFile.ReadToEnd()) ?? Array.Empty<Message>();
 
-				UI.LoadHTMLPage("server.html", new PageConstructionBag().AddConstructionArgument("InitialMessages", brMessages.Select(s => new MessageUIDTO(s)), useJson: true));
-				UI.SetJSPluginContext(html);
+				ui.LoadHTMLPage(new("server.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", brMessages.Select(s => new MessageUIDTO(s)), useJson: true));
+				ui.SetJSPluginContext(html);
 			}
 		}
 
-		public async ValueTask ProcessMessageAsync(ProtocolMessage message, IMessageContext messageContext)
+		public async ValueTask ProcessMessageAsync(ProtocolMessage message, MessageContext messageContext)
 		{
-			if (Protocol is IServerProtocolEnvironment server)
+			if (protocol is IServerProtocolEnvironment server)
 			{
 				if (message.Body is ChatRequest)
 				{
@@ -106,31 +92,31 @@ namespace ChatPlugin
 
 					try
 					{
-						await messageContext.Agent.SendMessageAsync(new(Domain, new ChatResponce() { Messages = messages }, null, null));
+						await messageContext.Agent.SendMessageAsync(new(new ChatResponce() { Messages = messages }, null));
 					}
 					catch (Exception) { }
 
 
 					foreach (var msg in messages)
-						UI.ExecuteJavaScriptFunction("visualizeMessageSS", GetAgentUserName(messageContext.Agent), new MessageUIDTO(msg));
+						ui.ExecuteJavaScriptFunction("visualizeMessageSS", GetAgentUserName(messageContext.Agent), new MessageUIDTO(msg));
 				}
 				else if (message.Body is NewMessage msg)
 				{
 					AppendMessagesFile(messageContext.Agent, msg.Message);
 
-					UI.ExecuteJavaScriptFunction("visualizeMessageSS", GetAgentUserName(messageContext.Agent), new MessageUIDTO(msg.Message));
+					ui.ExecuteJavaScriptFunction("visualizeMessageSS", GetAgentUserName(messageContext.Agent), new MessageUIDTO(msg.Message));
 				}
 			}
-			else if (Protocol is IClientProtocolEnviroment client)
+			else if (protocol is IClientProtocolEnviroment client)
 			{
 				if (message.Body is ChatResponce cr)
 				{
-					UI.LoadHTMLPage("client.html", new PageConstructionBag().AddConstructionArgument("InitialMessages", cr.Messages.Select(s => new MessageUIDTO(s)), useJson: true));
-					UI.SetJSPluginContext(html);
+					ui.LoadHTMLPage(new("client.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", cr.Messages.Select(s => new MessageUIDTO(s)), useJson: true));
+					ui.SetJSPluginContext(html);
 				}
 				else if (message.Body is NewMessage msg)
 				{
-					UI.ExecuteJavaScriptFunction("visualizeMessageCS", new MessageUIDTO(msg.Message));
+					ui.ExecuteJavaScriptFunction("visualizeMessageCS", new MessageUIDTO(msg.Message));
 				}
 				else if (message.Body is FileRequestResponce frr)
 				{
@@ -150,23 +136,18 @@ namespace ChatPlugin
 			}
 		}
 
-		public ValueTask ProcessCommandAsync(PluginCommandContext commandContext)
+		private string GetAgentUserName(IPluginRemoteAgent agent)
 		{
-			return ValueTask.CompletedTask;
-		}
-
-		private string GetAgentUserName(IRemoteProtocolAgent agent)
-		{
-			if (Protocol is IServerProtocolEnvironment server)
+			if (protocol is IServerProtocolEnvironment server)
 			{
 				return "/" + server.Server.GetClientByAgent(agent).ConnectionInformation.Login;
 			}
 			else return "Server";
 		}
 
-		private void AppendMessagesFile(IRemoteProtocolAgent agent, Message msg)
+		private void AppendMessagesFile(IPluginRemoteAgent agent, Message msg)
 		{
-			if (Protocol is IServerProtocolEnvironment server)
+			if (protocol is IServerProtocolEnvironment server)
 			{
 				AppendMessagesFile(server.Server.GetClientByAgent(agent).ConnectionInformation.Login, msg);
 			}
@@ -201,9 +182,9 @@ namespace ChatPlugin
 			return File.Open(filePath, FileMode.OpenOrCreate);
 		}
 
-		private FileStream OpenMessagesFile(IRemoteProtocolAgent agent)
+		private FileStream OpenMessagesFile(IPluginRemoteAgent agent)
 		{
-			if (Protocol is IServerProtocolEnvironment server)
+			if (protocol is IServerProtocolEnvironment server)
 			{
 				return OpenMessagesFile(server.Server.GetClientByAgent(agent).ConnectionInformation.Login);
 			}
@@ -273,17 +254,17 @@ namespace ChatPlugin
 			{
 				var message = new NewMessage(new(owner.UserName, content, (Message.ContentType)contentType, DateTime.Now));
 
-				IEnumerable<IRemoteProtocolAgent> targets;
+				IEnumerable<IPluginRemoteAgent> targets;
 
-				if (owner.Protocol is IServerProtocolEnvironment server)
+				if (owner.protocol is IServerProtocolEnvironment server)
 				{
 					var mtargets = server.Server.ListClients();
 					if (reciver is not null) mtargets = mtargets.Where(s => s.ConnectionInformation.Login == reciver);
-					targets = mtargets.Select(s => s.ProtocolAgent);
+					targets = mtargets.Select(s => s.Agent);
 
 					AppendMessagesFile(reciver, message.Message);
 				}
-				else if (owner.Protocol is IClientProtocolEnviroment client)
+				else if (owner.protocol is IClientProtocolEnviroment client)
 				{
 					targets = new[] { client.Client.GetServerAgent() };
 				}
@@ -291,7 +272,7 @@ namespace ChatPlugin
 
 				try
 				{
-					await Task.WhenAll(targets.Select(target => target.SendMessageAsync(new(owner.Domain, message, null, null))));
+					await Task.WhenAll(targets.Select(target => target.SendMessageAsync(new(message, null))));
 				}
 				catch (Exception) { }
 			}
@@ -303,10 +284,10 @@ namespace ChatPlugin
 			{
 				byte[] bytes;
 
-				if (owner.Protocol is IClientProtocolEnviroment client)
+				if (owner.protocol is IClientProtocolEnviroment client)
 				{
 					var request = new FileRequest(uuid, requireBinaries: true);
-					var message = new ProtocolMessage(owner.Domain, request, null, null);
+					var message = new PluginProtocolMessage(request, null);
 					await client.Client.GetServerAgent().SendMessageAsync(message);
 
 					var (_, rbytes) = await owner.AwaitForFile(uuid);
@@ -325,10 +306,10 @@ namespace ChatPlugin
 
 			public async Task<FileMetadata> GetFileMetadata(string uuid)
 			{
-				if (owner.Protocol is IClientProtocolEnviroment client)
+				if (owner.protocol is IClientProtocolEnviroment client)
 				{
 					var request = new FileRequest(uuid, requireBinaries: false);
-					var message = new ProtocolMessage(owner.Domain, request, null, null);
+					var message = new PluginProtocolMessage(request, null);
 					await client.Client.GetServerAgent().SendMessageAsync(message);
 
 					var (metadata, bytes) = await owner.AwaitForFile(uuid);
@@ -345,11 +326,11 @@ namespace ChatPlugin
 				byte[] bytes = new byte[realLength];
 				Buffer.BlockCopy(intBytes, 0, bytes, 0, realLength);
 
-				if (owner.Protocol is IClientProtocolEnviroment client)
+				if (owner.protocol is IClientProtocolEnviroment client)
 				{
 					var messageFile = new FileMetadata(name, extension);
 					var request = new UploadFileRequest(messageFile, "file");
-					var message = new ProtocolMessage(owner.Domain, request, new[] { new ProtocolMessage.Attachment("file", async stream => await stream.WriteAsync(bytes), bytes.Length) }, null);
+					var message = new PluginProtocolMessage(request, new[] { new PluginProtocolMessage.Attachment("file", async stream => await stream.WriteAsync(bytes), bytes.Length) });
 
 					await client.Client.GetServerAgent().SendMessageAsync(message);
 

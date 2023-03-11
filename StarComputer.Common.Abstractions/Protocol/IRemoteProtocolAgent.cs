@@ -7,6 +7,8 @@ namespace StarComputer.Common.Abstractions.Protocol
 	{
 		public IPEndPoint CurrentEndPoint { get; }
 
+		public Guid UniqueAgentId { get; }
+
 
 		public void Disconnect();
 

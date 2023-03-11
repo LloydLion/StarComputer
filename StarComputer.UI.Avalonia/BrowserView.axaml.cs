@@ -12,7 +12,7 @@ namespace StarComputer.UI.Avalonia
 		public const string JSContextFieldName = "context";
 
 
-		private readonly Dictionary<IPlugin, AvaloniaCefBrowser> browsers = new();
+		private readonly Dictionary<PluginDomain, AvaloniaCefBrowser> browsers = new();
 
 
 		private BrowserViewModel Context => (BrowserViewModel)DataContext!;
@@ -74,7 +74,7 @@ namespace StarComputer.UI.Avalonia
 			Context.InitializePostUI();
 		}
 
-		private dynamic? ExecuteJavaScript(IPlugin caller, string functionName, object[] arguments)
+		private dynamic? ExecuteJavaScript(PluginDomain caller, string functionName, object[] arguments)
 		{
 			var jsonArgs = arguments.Select(s => JsonConvert.SerializeObject(s)).ToArray();
 			var code = $"{functionName}({string.Join(", ", jsonArgs)});";
@@ -82,14 +82,14 @@ namespace StarComputer.UI.Avalonia
 		}
 
 		[return: NotNullIfNotNull("plugin")]
-		private AvaloniaCefBrowser? GetBrowser(IPlugin? plugin)
+		private AvaloniaCefBrowser? GetBrowser(PluginDomain? plugin)
 		{
 			if (plugin is null) return null;
-			else if (browsers.TryGetValue(plugin, out var val)) return val;
+			else if (browsers.TryGetValue(plugin.Value, out var val)) return val;
 			else
 			{
 				var browser = new AvaloniaCefBrowser();
-				browsers.Add(plugin, browser);
+				browsers.Add(plugin.Value, browser);
 				return browser;
 			}
 		}

@@ -40,12 +40,12 @@ namespace StarComputer.Client
 		private readonly ILogger<Client> logger;
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 		private readonly IBodyTypeResolver bodyTypeResolver;
-		private readonly AutoResetEvent onConnectionEvent = new(false);
+
+		private readonly AutoResetEvent onConnectionScheduled = new(false);
 		private readonly AutoResetEvent onServerDisconnected = new(false);
 		private readonly AutoResetEvent onClientClosed = new(false);
-		private TaskCompletionSource? connectionTaskTCS = null;
-		private IRemoteProtocolAgent? serverAgent = null;
-		private ConnectionConfiguration? connectionConfiguration = null;
+
+		private Connection? currentConnection;
 		private bool isConnected;
 		private bool isClosing;
 
@@ -81,27 +81,27 @@ namespace StarComputer.Client
 
 		public ValueTask ConnectAsync(ConnectionConfiguration connectionConfiguration)
 		{
-			if (connectionTaskTCS is not null)
+			if (currentConnection is not null)
 				throw new InvalidOperationException("Disconnect from server before open new connection");
 
-			this.connectionConfiguration = connectionConfiguration;
-			connectionTaskTCS = new();
-			onConnectionEvent.Set();
+			var connectionTaskTCS = new TaskCompletionSource();
+			currentConnection = new(connectionTaskTCS, connectionConfiguration);
+			onConnectionScheduled.Set();
 			return new(connectionTaskTCS.Task);
 		}
 
 		public ConnectionConfiguration GetConnectionConfiguration()
 		{
-			if (connectionConfiguration is null)
+			if (currentConnection is null)
 				throw new InvalidOperationException("Connect to server before get agent");
-			return connectionConfiguration.Value;
+			return currentConnection.Configuration;
 		}
 
 		public IRemoteProtocolAgent GetServerAgent()
 		{
-			if (serverAgent is null)
+			if (currentConnection is null || currentConnection.IsAgentInitialized == false)
 				throw new InvalidOperationException("Connect to server before get agent");
-			return serverAgent;
+			return currentConnection.Agent;
 		}
 
 		public void MainLoop(IPluginStore plugins)
@@ -110,10 +110,13 @@ namespace StarComputer.Client
 			{
 				logger.Log(LogLevel.Information, ClientReadyID, "Client ready to connect to a server");
 
-				WaitHandle.WaitAny(new[] { onConnectionEvent, onClientClosed });
+				WaitHandle.WaitAny(new[] { onConnectionScheduled, onClientClosed });
 				if (isClosing) break;
 
-				(IPEndPoint endPoint, string serverPassword, string login) = connectionConfiguration!.Value;
+				if (currentConnection is null)
+					throw new Exception("Impossible exception");
+
+				(IPEndPoint endPoint, string serverPassword, string login) = currentConnection.Configuration;
 
 				var rawClient = new TcpClient();
 				int port;
@@ -127,12 +130,12 @@ namespace StarComputer.Client
 					var client = new SocketClient(rawClient, logger);
 
 					var pluginsVersions = plugins.ToDictionary(s => s.Key, s => s.Value.Version);
-					client.WriteJson(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion, pluginsVersions));
+					client.WriteObject(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion, pluginsVersions));
 
 					logger.Log(LogLevel.Debug, ClientDataSentID, "Client data sent to server at {ServerEndPoint}. Login - {Login}, password - {Password}", endPoint, login, serverPassword);
 
 					while (client.IsDataAvailable == false) Thread.Sleep(10);
-					var responce = client.ReadJson<ConnectionResponce>();
+					var responce = client.ReadObject<ConnectionResponce>();
 
 					if (responce.DebugMessage is not null)
 						logger.Log(LogLevel.Debug, DebugMessageFromServerID, "Debug message from server: {DebugMessage}", responce.DebugMessage);
@@ -152,10 +155,8 @@ namespace StarComputer.Client
 				catch (Exception ex)
 				{
 					logger.Log(LogLevel.Error, ClientConnectionFailID, ex, "Failed to connect to the server");
-					connectionTaskTCS?.SetException(ex);
-					connectionTaskTCS = null;
-					connectionConfiguration = null;
-					serverAgent = null;
+					currentConnection.ConnectionTask.SetException(ex);
+					currentConnection = null;
 					continue;
 				}
 
@@ -166,11 +167,12 @@ namespace StarComputer.Client
 					rawClient = new TcpClient();
 					rawClient.Connect(endpoint);
 
-					var agent = new AgentWorker(this, endpoint);
+					var agentWorker = new AgentWorker(this, endpoint);
 
-					serverAgent = new RemoteProtocolAgent(rawClient, agent, logger, bodyTypeResolver);
+					var agent = new RemoteProtocolAgent(rawClient, agentWorker, logger, bodyTypeResolver);
+					agent.Start();
 
-					serverAgent.Start();
+					currentConnection.InitializeAgent(agent);
 
 					logger.Log(LogLevel.Information, ClientJoinedID, "Joined to {ServerEndPoint} as ({Login}[{LocalIP}])",
 						endPoint, login, (IPEndPoint)rawClient.Client.LocalEndPoint!);
@@ -178,15 +180,13 @@ namespace StarComputer.Client
 				catch (Exception ex)
 				{
 					logger.Log(LogLevel.Error, ClientJoinFailID, ex, "Failed to join to server at {ServerEndPoint}", endPoint);
-					connectionTaskTCS?.SetException(ex);
-					connectionTaskTCS = null;
-					connectionConfiguration = null;
-					serverAgent = null;
+					currentConnection.ConnectionTask.SetException(ex);
+					currentConnection = null;
 					continue;
 				}
 
-				connectionTaskTCS?.SetResult();
 				IsConnected = true;
+				currentConnection.ConnectionTask.SetResult();
 
 				var handles = new[] { onServerDisconnected };
 
@@ -212,19 +212,39 @@ namespace StarComputer.Client
 							}
 						}
 					}
-					else //0 or ThreadDispatcherStatic.ClosedIndex
+					else if (index == ThreadDispatcherStatic.ClosedIndex)
 					{
-						//IsConnected already setted to false from agent worker
+						throw new InvalidOperationException("Dispatcher is closed, by external command. Terminating client");
+					}
+					else //index - 0
+					{
+						IsConnected = false;
 						logger.Log(LogLevel.Information, CloseSignalRecivedID, "Connection closing by internal command");
-						serverAgent = null;
-						connectionConfiguration = null;
-						connectionTaskTCS = null;
+						currentConnection = null;
 						break;
 					}
 				}
 			}
 		}
 
+
+		private record Connection(TaskCompletionSource ConnectionTask, ConnectionConfiguration Configuration)
+		{
+			private RemoteProtocolAgent? agent;
+
+
+			public RemoteProtocolAgent Agent => agent ?? throw new NullReferenceException();
+
+			public bool IsAgentInitialized => agent is not null;
+
+
+			public void InitializeAgent(RemoteProtocolAgent agent)
+			{
+				if (this.agent is not null)
+					throw new InvalidOperationException("Agent for this connection already initialized");
+				this.agent = agent;
+			}
+		}
 
 		private class AgentWorker : IRemoteAgentWorker
 		{
@@ -243,7 +263,6 @@ namespace StarComputer.Client
 			{
 				owner.logger.Log(LogLevel.Information, DisconnectedID, "Disconnection from server, session end");
 				owner.onServerDisconnected.Set();
-				owner.IsConnected = false;
 			}
 
 			public void HandleError(IRemoteProtocolAgent agent, Exception ex)

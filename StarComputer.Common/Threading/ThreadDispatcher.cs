@@ -13,6 +13,9 @@ namespace StarComputer.Common.Threading
 		private WaitHandle[]? handles = null;
 
 
+		public bool IsWorking { get; private set; } = true;
+
+
 		public ThreadDispatcher(Thread targetThread, Action<TTask> taskExecutor)
 		{
 			this.targetThread = targetThread;
@@ -39,6 +42,7 @@ namespace StarComputer.Common.Threading
 		public void Close()
 		{
 			onClose.Set();
+			IsWorking = false;
 		}
 
 		public IEnumerable<TTask> GetQueue()

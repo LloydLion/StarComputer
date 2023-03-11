@@ -82,7 +82,7 @@ namespace HelloPlugin
 			return ValueTask.CompletedTask;
 		}
 
-		public async ValueTask ProcessMessageAsync(ProtocolMessage message, IMessageContext messageContext)
+		public async ValueTask ProcessMessageAsync(ProtocolMessage message, MessageContext messageContext)
 		{
 			if (message.Body is GreetingBody body)
 			{

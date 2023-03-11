@@ -1,15 +1,12 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StarComputer.Server;
-using StarComputer.Common.Abstractions.Utils.Logging;
 using StarComputer.Server.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Server.DebugEnv;
 using StarComputer.Common.Abstractions.Plugins.UI.Console;
 using StarComputer.UI.Console.Plugins;
-using StarComputer.Common.Plugins.Commands;
-using StarComputer.Common.Abstractions.Plugins.Commands;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Threading;
 using System.Net;
@@ -40,24 +37,23 @@ var services = new ServiceCollection()
 		s.Interface = IPAddress.Parse(config.GetSection("Server").GetValue<string>(nameof(s.Interface))!);
 	})
 	.Configure<ReflectionPluginLoader.Options>(s => s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!)
-	.Configure<ResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
+	.Configure<FileResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 
 	.AddSingleton<IServer, Server>()
 
 	.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
 	.AddTransient<IClientApprovalAgent, GugApprovalAgent>()
 	.AddTransient<IConsoleUIContext, ConsoleUIContext>()
-	.AddSingleton<IResourcesCatalog, ResourcesCatalog>()
+	.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
 
 	.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 
-	.AddSingleton<ICommandRepository, CommandRepository>()
 	.AddSingleton<IBodyTypeResolver, BodyTypeResolver>()
 
 	.AddSingleton<IPluginLoader, ReflectionPluginLoader>()
 	.AddSingleton<IPluginStore, PluginStore>()
 
-	.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddFancyLogging())
+	.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddConsole().AddDebug())
 
 	.BuildServiceProvider();
 
@@ -69,15 +65,20 @@ SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<ITh
 
 var plugins = services.GetRequiredService<IPluginStore>();
 var pluginLoader = services.GetRequiredService<IPluginLoader>();
-var commandRepositoryBuilder = new CommandRespositoryBuilder();
 var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 
-var pluginInitializer = new ServerPluginInitializer<IConsoleUIContext>(server, commandRepositoryBuilder, bodyTypeResolverBuilder, new ConsoleUIContextGugFactory(ui));
+var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder);
+pluginInitializer.SetServices((sp, proto) =>
+{
+	sp.Register(ui);
 
-await plugins.InitializeStoreAsync(pluginLoader);
-plugins.InitalizePlugins(pluginInitializer);
+	var env = new ServerProtocolEnvironment(server, proto);
+	sp.Register<IServerProtocolEnvironment>(env);
+	sp.Register<IProtocolEnvironment>(env);
+});
 
-commandRepositoryBuilder.BakeToRepository(services.GetRequiredService<ICommandRepository>());
+await plugins.InitializeStoreAsync(pluginLoader, pluginInitializer);
+
 bodyTypeResolverBuilder.BakeToResolver(services.GetRequiredService<IBodyTypeResolver>());
 
 server.ListenAsync().AsTask().Equals(null);

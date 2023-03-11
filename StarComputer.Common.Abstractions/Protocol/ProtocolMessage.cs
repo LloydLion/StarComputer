@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-
-namespace StarComputer.Common.Abstractions.Protocol
+﻿namespace StarComputer.Common.Abstractions.Protocol
 {
 	public class ProtocolMessage
 	{
@@ -39,7 +37,7 @@ namespace StarComputer.Common.Abstractions.Protocol
 
 		public override string ToString()
 		{
-			return $"ProtocolMessage (timeStamp {TimeStamp.Ticks}, domain {Domain}, debug {DebugMessage ?? "No message"}) {JsonConvert.SerializeObject(Body)} - {Attachments?.Count ?? 0} attachments";
+			return $"ProtocolMessage (timeStamp {TimeStamp.Ticks}, domain {Domain}, debug {DebugMessage ?? "No message"}) {SerializationContext.Instance.Serialize(Body)} - {Attachments?.Count ?? 0} attachments";
 		}
 	}
 }

@@ -17,7 +17,7 @@ namespace StarComputer.Server.Abstractions
 
 		public IEnumerable<ServerSideClient> ListClients();
 
-		public ServerSideClient GetClientByAgent(IRemoteProtocolAgent protocolAgent);
+		public ServerSideClient GetClientByAgent(Guid protocolAgentId);
 
 		public void MainLoop(IPluginStore plugins);
 	}

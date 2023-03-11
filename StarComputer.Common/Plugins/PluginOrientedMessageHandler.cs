@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Plugins.Protocol;
 using StarComputer.Common.Abstractions.Protocol;
+using StarComputer.Common.Plugins.Protocol;
 
 namespace StarComputer.Common.Plugins
 {
@@ -12,6 +14,7 @@ namespace StarComputer.Common.Plugins
 
 		private readonly IPluginStore plugins;
 		private readonly ILogger<PluginOrientedMessageHandler> logger;
+		private readonly Dictionary<(IRemoteProtocolAgent, IPlugin), IPluginRemoteAgent> agentsCache = new();
 
 
 		public PluginOrientedMessageHandler(IPluginStore plugins, ILogger<PluginOrientedMessageHandler> logger)
@@ -25,24 +28,20 @@ namespace StarComputer.Common.Plugins
 		{
 			if (plugins.TryGetValue(message.Domain, out var plugin))
 			{
-				logger.Log(LogLevel.Debug, MessageHandledID, "Message handled by {PluginType} (domain: {Domain})", plugin.GetType().FullName, plugin.Domain);
+				logger.Log(LogLevel.Debug, MessageHandledID, "Message handled by {PluginType} (domain: {Domain})", plugin.GetType().FullName, plugin.GetDomain());
 
-				await plugin.ProcessMessageAsync(message, new Context(agent));
+				IPluginRemoteAgent? pluginAgent;
+				if (agentsCache.TryGetValue((agent, plugin), out pluginAgent) == false)
+				{
+					pluginAgent = new PluginRemoteAgent(agent, plugin.GetDomain());
+					agentsCache.Add((agent, plugin), pluginAgent);
+				}
+
+				await plugin.ProcessMessageAsync(message, new MessageContext(pluginAgent));
 			}
 			else
 			{
 				logger.Log(LogLevel.Warning, UnknownMessageDomainID, "Unknown message domain - {Message}", message);
-			}
-		}
-
-		private class Context : IMessageContext
-		{
-			public IRemoteProtocolAgent Agent { get; }
-
-
-			public Context(IRemoteProtocolAgent agent)
-			{
-				Agent = agent;
 			}
 		}
 	}

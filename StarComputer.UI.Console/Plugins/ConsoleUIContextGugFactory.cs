@@ -1,4 +1,5 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Plugins.Loading;
 using StarComputer.Common.Abstractions.Plugins.UI.Console;
 
 namespace StarComputer.UI.Console.Plugins
@@ -14,7 +15,7 @@ namespace StarComputer.UI.Console.Plugins
 		}
 
 
-		public IConsoleUIContext CreateContext(IPlugin plugin)
+		public IConsoleUIContext CreateContext(PluginLoadingProto plugin)
 		{
 			return ctx;
 		}

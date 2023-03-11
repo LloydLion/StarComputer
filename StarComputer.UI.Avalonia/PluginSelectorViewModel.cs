@@ -31,7 +31,7 @@ namespace StarComputer.UI.Avalonia
 		{
 			public override string ToString()
 			{
-				return $"{Plugin.Domain} [{Plugin.GetType().FullName}|{Plugin.Version}]";
+				return $"{Plugin.GetDomain()} [{Plugin.GetType().FullName}|{Plugin.Version}]";
 			}
 		}
 	}

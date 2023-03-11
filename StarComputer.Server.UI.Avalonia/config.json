@@ -21,6 +21,11 @@
 	"Resources":
 	{
 		"Path": "resources",
-		"TemporalFileName": "temporal.starcomputer"
+	},
+
+	"HTMLPUI":
+	{
+		"UniqueHttpPrefix": "starComputer/server",
+		"HttpPort": 7676
 	}
 }

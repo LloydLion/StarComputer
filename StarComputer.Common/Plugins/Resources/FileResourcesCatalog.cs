@@ -4,24 +4,24 @@ using StarComputer.Common.Abstractions.Plugins.Resources;
 
 namespace StarComputer.Common.Plugins.Resources
 {
-	public class ResourcesCatalog : IResourcesCatalog
+	public class FileResourcesCatalog : IResourcesCatalog
 	{
 		private readonly Options options;
-		private readonly Dictionary<IPlugin, IResourcesManager> managers = new();
+		private readonly Dictionary<PluginDomain, IResourcesManager> managers = new();
 
 
-		public ResourcesCatalog(IOptions<Options> options)
+		public FileResourcesCatalog(IOptions<Options> options)
 		{
 			this.options = options.Value;
 		}
 
 
-		public IResourcesManager GetResourcesFor(IPlugin plugin)
+		public IResourcesManager GetResourcesFor(PluginDomain plugin)
 		{
 			if (managers.ContainsKey(plugin)) return managers[plugin];
 			else
 			{
-				var manager = new ResourcesManager(Path.Combine(options.Path, plugin.Domain), plugin, options.TemporalFileName);
+				var manager = new FileResourcesManager(options.Path, plugin);
 				managers.Add(plugin, manager);
 				return manager;
 			}
@@ -31,8 +31,6 @@ namespace StarComputer.Common.Plugins.Resources
 		public class Options
 		{
 			public string Path { get; set; } = "resources";
-
-			public string TemporalFileName { get; set; } = "temporal.starcomputer";
 		}
 	}
 }

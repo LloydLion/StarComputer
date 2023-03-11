@@ -1,7 +1,9 @@
-﻿namespace StarComputer.Common.Abstractions.Plugins
+﻿using StarComputer.Common.Abstractions.Plugins.Loading;
+
+namespace StarComputer.Common.Abstractions.Plugins
 {
 	public interface IPluginInitializer
 	{
-		public void InitializePlugins(IEnumerable<IPlugin> plugins);
+		public IEnumerable<IPlugin> InitializePlugins(IEnumerable<PluginLoadingProto> plugins);
 	}
 }

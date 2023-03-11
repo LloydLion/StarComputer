@@ -2,6 +2,6 @@
 {
 	public interface IResourcesCatalog
 	{
-		public IResourcesManager GetResourcesFor(IPlugin plugin);
+		public IResourcesManager GetResourcesFor(PluginDomain plugin);
 	}
 }

@@ -5,10 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
-using StarComputer.Common.Abstractions.Plugins.Commands;
 using StarComputer.Common.Abstractions.Protocol;
-using StarComputer.Common.Plugins.Commands;
-using StarComputer.Common.Abstractions.Utils.Logging;
 using StarComputer.Common.Threading;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Plugins;
@@ -19,7 +16,6 @@ using StarComputer.Common.Abstractions.Protocol.Bodies;
 using System;
 using System.Threading;
 using ReactiveUI;
-using System.Net;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Plugins.Resources;
@@ -50,29 +46,28 @@ namespace StarComputer.Server.UI.Avalonia
 
 			services = new ServiceCollection()
 				.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
-				.Configure<ResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
+				.Configure<FileResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 				.Configure<ReflectionPluginLoader.Options>(s =>
 				{
 					s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
 				})
+				.Configure<HTMLUIManager.Options>(config.GetSection("HTMLPUI"))
 
 				.AddSingleton<IServer, Server>()
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
 				.AddSingleton<HTMLUIManager>()
 				.AddTransient<IClientApprovalAgent, GugApprovalAgent>()
-				.AddSingleton<IResourcesCatalog, ResourcesCatalog>()
+				.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
 
 				.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 
-				.AddSingleton<ICommandRepository, CommandRepository>()
 				.AddSingleton<IBodyTypeResolver, BodyTypeResolver>()
 
-				.AddSingleton<ICommandRepository, CommandRepository>()
 				.AddSingleton<IPluginLoader, ReflectionPluginLoader>()
 				.AddSingleton<IPluginStore, PluginStore>()
 
-				.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddFancyLogging())
+				.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddConsole().AddDebug())
 
 				.BuildServiceProvider();
 
@@ -85,15 +80,20 @@ namespace StarComputer.Server.UI.Avalonia
 
 			var plugins = lservices.GetRequiredService<IPluginStore>();
 			var pluginLoader = lservices.GetRequiredService<IPluginLoader>();
-			var commandRepositoryBuilder = new CommandRespositoryBuilder();
 			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 
-			var pluginInitializer = new ServerPluginInitializer<IHTMLUIContext>(server, commandRepositoryBuilder, bodyTypeResolverBuilder, uiManager);
+			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder);
+			pluginInitializer.SetServices((sp, proto) =>
+			{
+				sp.Register<IHTMLUIContext>(uiManager.CreateContext(proto));
 
-			plugins.InitializeStoreAsync(pluginLoader).AsTask().Wait();
-			plugins.InitalizePlugins(pluginInitializer);
+				var env = new ServerProtocolEnvironment(server, proto);
+				sp.Register<IServerProtocolEnvironment>(env);
+				sp.Register<IProtocolEnvironment>(env);
+			});
 
-			commandRepositoryBuilder.BakeToRepository(lservices.GetRequiredService<ICommandRepository>());
+			plugins.InitializeStoreAsync(pluginLoader, pluginInitializer).AsTask().Wait();
+
 			bodyTypeResolverBuilder.BakeToResolver(lservices.GetRequiredService<IBodyTypeResolver>());
 
 

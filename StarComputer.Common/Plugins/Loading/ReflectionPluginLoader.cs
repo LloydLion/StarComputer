@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace StarComputer.Common.Plugins.Loading
 {
-	public class ReflectionPluginLoader : IPluginLoader
+    public class ReflectionPluginLoader : IPluginLoader
 	{
 		private static readonly EventId LoadingDirectoryID = new(11, "LoadingDirectory");
 		private static readonly EventId PluginLoadedID = new(12, "PluginLoaded");
@@ -27,9 +27,9 @@ namespace StarComputer.Common.Plugins.Loading
 		}
 
 
-		public ValueTask<IEnumerable<IPlugin>> LoadPluginsAsync()
+		public ValueTask<IEnumerable<PluginLoadingProto>> LoadPluginsAsync()
 		{
-			var plugins = new List<IPlugin>();
+			var plugins = new List<PluginLoadingProto>();
 
 			foreach (var directory in options.GetPluginDirectories())
 			{
@@ -57,10 +57,15 @@ namespace StarComputer.Common.Plugins.Loading
 						{
 							try
 							{
-								var plugin = (IPlugin)(Activator.CreateInstance(pluginType) ?? throw new NullReferenceException());
-								plugins.Add(plugin);
+								var domain = pluginType.GetCustomAttribute<PluginAttribute>()!.Domain;
+								var typeCache = pluginType;
+								plugins.Add(new(domain, (services) =>
+								{
+									return (IPlugin)Activator.CreateInstance(typeCache, services)!;
+								}));
+
 								logger.Log(LogLevel.Information, PluginLoadedID, "Plugin ({Domain}[{PluginType}]) loaded successfully from {FileLocation}",
-									plugin.Domain, pluginType, dll);
+									domain, pluginType, dll);
 							}
 							catch (Exception)
 							{
@@ -75,7 +80,7 @@ namespace StarComputer.Common.Plugins.Loading
 				}
 			}
 
-			return ValueTask.FromResult<IEnumerable<IPlugin>>(plugins);
+			return ValueTask.FromResult<IEnumerable<PluginLoadingProto>>(plugins);
 		}
 
 

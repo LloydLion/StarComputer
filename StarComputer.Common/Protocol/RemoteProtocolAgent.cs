@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using StarComputer.Common.Abstractions;
 using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Common.Abstractions.Threading;
@@ -13,10 +12,21 @@ namespace StarComputer.Common.Protocol
 {
 	public class RemoteProtocolAgent : IRemoteProtocolAgent
 	{
+		private static readonly EventId MessageSendErrorID = new(91, "MessageSendError");
+		private static readonly EventId AgentDisconnectedID = new(92, "AgentDisconnected");
+		private static readonly EventId AgentReconnectedID = new(93, "AgentReconnected");
+		private static readonly EventId AgentConnectionLostID = new(94, "AgentConnectionLost");
+		private static readonly EventId NewMessageDispatchedID = new(95, "NewMessageDispatched");
+		private static readonly EventId NewMessageWritenID = new(96, "NewMessageWriten");
+		private static readonly EventId NewMessageHandledID = new(97, "NewMessageHandled");
+		private static readonly EventId MessageHandleErrorID = new(98, "MessageHandleError");
+
+
 		private SocketClient client;
 		private readonly IRemoteAgentWorker agentWorker;
 		private readonly ILogger logger;
 		private readonly IBodyTypeResolver bodyTypeResolver;
+		private readonly string name;
 
 		private Thread workThread;
 		private IThreadDispatcher<WriteThreadTask> workThreadDispatcher;
@@ -24,10 +34,12 @@ namespace StarComputer.Common.Protocol
 
 		public IPEndPoint CurrentEndPoint => client.EndPoint;
 
+		public Guid UniqueAgentId { get; } = Guid.NewGuid();
 
-		public RemoteProtocolAgent(TcpClient client, IRemoteAgentWorker agentWorker, ILogger logger, IBodyTypeResolver bodyTypeResolver)
+
+		public RemoteProtocolAgent(TcpClient client, IRemoteAgentWorker agentWorker, ILogger logger, IBodyTypeResolver bodyTypeResolver, string name = "#")
 		{
-			this.client = new(client, logger);
+			this.client = new(client, logger, "RPA: " + name);
 
 			workThread = new Thread(WorkThreadHandler);
 			workThreadDispatcher = new ThreadDispatcher<WriteThreadTask>(workThread, WriteMessage);
@@ -35,6 +47,7 @@ namespace StarComputer.Common.Protocol
 			this.agentWorker = agentWorker;
 			this.logger = logger;
 			this.bodyTypeResolver = bodyTypeResolver;
+			this.name = name;
 		}
 
 
@@ -45,35 +58,55 @@ namespace StarComputer.Common.Protocol
 
 		public void Disconnect()
 		{
-			DisconnectInternal();
+			foreach (var item in workThreadDispatcher.GetQueue())
+				item.Task.SetException(new Exception("Agent was closed"));
+			workThreadDispatcher.Close();
+
 			agentWorker.HandleDisconnect(this);
+
+			if (workThread.IsAlive && workThread.ManagedThreadId != Environment.CurrentManagedThreadId)
+				workThread.Join();
+
+			logger.Log(LogLevel.Debug, AgentDisconnectedID, "Remote protocol agent ({Name}): agent disconnected", name);
 		}
 
 		public void Reconnect(TcpClient newClient)
 		{
-			client = new(newClient, logger);
+			if (client.IsConnected)
+				client.Close();
+
+			client = new(newClient, logger, "RPA: " + name);
+
+			if (workThread.IsAlive && workThread.ManagedThreadId != Environment.CurrentManagedThreadId)
+				workThread.Join();
 
 			workThread = new Thread(WorkThreadHandler);
-			workThreadDispatcher = new ThreadDispatcher<WriteThreadTask>(workThread, WriteMessage);
 
-			Start();
+
+			var newWorkThreadDispatcher = new ThreadDispatcher<WriteThreadTask>(workThread, WriteMessage);
+
+			if (workThreadDispatcher.IsWorking)
+			{
+				foreach (var item in workThreadDispatcher.GetQueue())
+					newWorkThreadDispatcher.DispatchTask(item);
+
+				workThreadDispatcher.Close();
+			}
+
+			workThreadDispatcher = newWorkThreadDispatcher;
+
+
+			logger.Log(LogLevel.Debug, AgentReconnectedID, "Remote protocol agent ({Name}): agent reconnected to new endpoint {Endpoint}", name, client.EndPoint);
 		}
 
 		public Task SendMessageAsync(ProtocolMessage message)
 		{
 			var tcs = new TaskCompletionSource();
 			workThreadDispatcher.DispatchTask(new(message, tcs));
+
+			logger.Log(LogLevel.Trace, NewMessageDispatchedID, "Remote protocol agent ({Name}): New message dispatched - {message}", name, message);
+
 			return tcs.Task;
-		}
-
-		private void DisconnectInternal()
-		{
-			workThreadDispatcher.Close();
-
-			if (Environment.CurrentManagedThreadId != workThread.ManagedThreadId)
-				workThread.Join();
-
-			client.Close();
 		}
 
 		private void WorkThreadHandler()
@@ -86,14 +119,11 @@ namespace StarComputer.Common.Protocol
 
 					if (index == ThreadDispatcherStatic.ClosedIndex)
 					{
-						var queue = workThreadDispatcher.GetQueue();
-						foreach (var task in queue)
-							task.Task.SetException(new Exception("Protocol agent closed"));
 						return;
 					}
 					else if (index == ThreadDispatcherStatic.TimeoutIndex)
 					{
-						ExecutePeriodicTasks();
+						if (ExecutePeriodicTasks() == false) return;
 					}
 					else //ThreadDispatcherStatic.NewTaskIndex
 					{
@@ -108,8 +138,7 @@ namespace StarComputer.Common.Protocol
 							}
 							catch (Exception ex)
 							{
-								if (exceptions is null)
-									exceptions = new();
+								exceptions ??= new();
 								exceptions.AddLast(ex);
 							}
 						}
@@ -120,7 +149,6 @@ namespace StarComputer.Common.Protocol
 				}
 				catch (Exception ex)
 				{
-					DisconnectInternal();
 					agentWorker.HandleError(this, ex);
 					agentWorker.ScheduleReconnect(this);
 					return;
@@ -128,81 +156,113 @@ namespace StarComputer.Common.Protocol
 			}
 		}
 
-		private void ExecutePeriodicTasks()
+		private bool ExecutePeriodicTasks()
 		{
 			if (client.IsConnected == false)
 			{
-				DisconnectInternal();
+				logger.Log(LogLevel.Error, AgentConnectionLostID, "Remote protocol agent ({Name}): agent connection lost", name);
 				agentWorker.ScheduleReconnect(this);
-				return;
+				return false;
 			}
+
 
 			while (client.IsDataAvailable)
 			{
-				var messageContent = client.ReadJson<MessageJsonContent>();
-
-				List<ProtocolMessage.Attachment>? attachments = null;
-
-				if (messageContent.AttachmentLengths is not null)
+				try
 				{
-					attachments = new();
+					var messageContent = client.ReadObject<MessageSerializationModel>();
 
-					foreach (var attachment in messageContent.AttachmentLengths)
+					List<ProtocolMessage.Attachment>? attachments = null;
+
+					if (messageContent.Attachments is not null)
 					{
-						var buffer = client.ReadBytes(attachment.Value);
-						attachments.Add(new(attachment.Key, new BufferCopier(buffer).CopyToAsync, attachment.Value));
+						attachments = new();
+
+						foreach (var attachment in messageContent.Attachments)
+						{
+							var buffer = client.ReadBytes(attachment.Value);
+							attachments.Add(new(attachment.Key, new BufferCopier(buffer).CopyToAsync, attachment.Value));
+						}
 					}
+
+					var body = SerializationContext.Instance.SubDeserialize(messageContent.Body, bodyTypeResolver.Resolve(new(messageContent.BodyType!, messageContent.Domain)));
+
+					var message = new ProtocolMessage(new DateTime(messageContent.TimeSpamp), messageContent.Domain, body, attachments, messageContent.DebugMessage);
+
+
+					logger.Log(LogLevel.Trace, NewMessageHandledID, "Remote protocol agent ({Name}): new message handled - {message}", name, message);
+					agentWorker.DispatchMessage(this, message);
 				}
-
-				var body = messageContent.Body?.ToObject(bodyTypeResolver.Resolve(new(messageContent.BodyType!, messageContent.MessageDomain)));
-
-				var message = new ProtocolMessage(new DateTime(messageContent.TimeStampUtcTicks), messageContent.MessageDomain, body, attachments, messageContent.DebugMessage);
-
-
-				agentWorker.DispatchMessage(this, message);
+				catch (Exception ex)
+				{
+					logger.Log(LogLevel.Error, MessageHandleErrorID, ex, "Remote protocol agent ({Name}): message handle error", name);
+				}
 			}
+
+			return true;
 		}
 
 		private void WriteMessage(WriteThreadTask task)
 		{
-			var message = task.Message;
-
-			Dictionary<string, int>? attachmentLengths = null;
-			if (message.Attachments is not null)
+			try
 			{
-				attachmentLengths = new();
+				var message = task.Message;
 
-				foreach (var attachment in message.Attachments.Values)
-					attachmentLengths.Add(attachment.Name, attachment.Length);
+				Dictionary<string, int>? attachmentLengths = null;
+				if (message.Attachments is not null)
+				{
+					attachmentLengths = new();
+
+					foreach (var attachment in message.Attachments.Values)
+						attachmentLengths.Add(attachment.Name, attachment.Length);
+				}
+
+				string? bodyTypePseudoName = null;
+
+				if (message.Body is not null)
+				{
+					var fullBodyTypeName = bodyTypeResolver.Code(message.Body.GetType());
+					if (message.Domain != fullBodyTypeName.TargetDomain)
+						throw new ArgumentException("Domain for body and marked in message are not equals");
+					bodyTypePseudoName = fullBodyTypeName.PseudoTypeName;
+				}
+
+				var messageModel = new MessageSerializationModel(
+					message.TimeStamp.Ticks,
+					message.Domain,
+					bodyTypePseudoName,
+					message.Body,
+					message.DebugMessage,
+					attachmentLengths
+				);
+
+				var data = SerializationContext.Instance.Serialize(messageModel);
+
+				try
+				{
+					client.WriteObject(data);
+
+					if (message.Attachments is not null)
+						foreach (var attachment in message.Attachments.Values)
+						{
+							client.CopyFrom(attachment.CopyDelegate);
+						}
+				}
+				catch (Exception ex)
+				{
+					logger.Log(LogLevel.Warning, MessageSendErrorID, ex, "Remote protocol agent ({Name}): enable to send message, message will be resent", name);
+					workThreadDispatcher.DispatchTask(task);
+					return;
+				}
+
+				logger.Log(LogLevel.Trace, NewMessageWritenID, "Remote protocol agent ({Name}): new message written - {message}", name, message);
+				task.Task.SetResult();
 			}
-
-			string? bodyTypePseudoName = null;
-
-			if (message.Body is not null)
+			catch (Exception ex)
 			{
-				var fullBodyTypeName = bodyTypeResolver.Code(message.Body.GetType());
-				if (message.Domain != fullBodyTypeName.TargetDomain)
-					throw new ArgumentException("Domain for body and marked in message are not equals");
-				bodyTypePseudoName = fullBodyTypeName.PseudoTypeName;
+				task.Task.SetException(ex);
+				throw;
 			}
-
-			var jsonObject = new MessageJsonContent(
-				message.TimeStamp.Ticks,
-				message.Domain,
-				bodyTypePseudoName,
-				message.Body is null ? null : JToken.FromObject(message.Body),
-				message.DebugMessage,
-				attachmentLengths
-			);
-
-
-			client.WriteJson(jsonObject);
-
-			if (message.Attachments is not null)
-				foreach (var attachment in message.Attachments.Values)
-					client.CopyFrom(attachment.CopyDelegate);
-
-			task.Task.SetResult();
 		}
 
 
@@ -225,13 +285,13 @@ namespace StarComputer.Common.Protocol
 			}
 		}
 
-		private record MessageJsonContent(
-			[JsonProperty(PropertyName = "TimeStamp")] long TimeStampUtcTicks,
-			[JsonProperty(PropertyName = "Domain")] string MessageDomain,
-			[JsonProperty(PropertyName = "BodyType")] string? BodyType,
-			[JsonProperty(PropertyName = "Body")] JToken? Body,
-			[JsonProperty(PropertyName = "Debug")] string? DebugMessage,
-			[JsonProperty(PropertyName = "AttachmentTable")] IReadOnlyDictionary<string, int>? AttachmentLengths
+		private record MessageSerializationModel(
+			long TimeSpamp,
+			string Domain,
+			string? BodyType,
+			object? Body,
+			string? DebugMessage,
+			IReadOnlyDictionary<string, int>? Attachments
 		);
 	}
 }

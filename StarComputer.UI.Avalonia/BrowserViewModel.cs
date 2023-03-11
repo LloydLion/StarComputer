@@ -1,12 +1,6 @@
 ﻿using Avalonia.Threading;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Threading;
-using System;
-using System.Collections.Generic;
-using System.Dynamic;
-using System.Reactive;
-using System.Reflection;
-using System.Runtime.InteropServices;
 
 namespace StarComputer.UI.Avalonia
 {
@@ -27,12 +21,12 @@ namespace StarComputer.UI.Avalonia
 		public event Action<HTMLUIManager.ContextChangingType, HTMLUIContext?>? ContextChanged;
 
 
-		public IReadOnlyDictionary<IPlugin, HTMLUIContext> Contexts => manager.Contexts;
+		public IReadOnlyDictionary<PluginDomain, HTMLUIContext> Contexts => manager.Contexts;
 
 
 		public void SetJavaScriptExecutor(HTMLUIManager.JavaScriptExecutor executor)
 		{
-			dynamic? wrap(IPlugin plugin, string functionName, object[] args)
+			dynamic? wrap(PluginDomain plugin, string functionName, object[] args)
 			{
 				var cell = new dynamic?[1];
 				var cevent = new AutoResetEvent(false);

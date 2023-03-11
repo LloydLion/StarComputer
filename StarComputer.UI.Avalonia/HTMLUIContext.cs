@@ -1,10 +1,9 @@
-﻿using StarComputer.Common.Abstractions.Plugins;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
-using System;
-using System.IO;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace StarComputer.UI.Avalonia
 {
@@ -12,15 +11,18 @@ namespace StarComputer.UI.Avalonia
 	{
 		private IHTMLPageConstructor? pageConstructor;
 		private readonly HTMLUIManager owner;
-		private readonly IPlugin plugin;
+		private readonly PluginDomain plugin;
 		private readonly IResourcesManager resources;
+		private readonly HttpLocalServer server;
 
 
-		public HTMLUIContext(HTMLUIManager owner, IPlugin plugin, IResourcesManager resources)
+		public HTMLUIContext(HTMLUIManager owner, PluginDomain plugin, IResourcesManager resources, ILogger logger, string httpPrefix, int httpPort = 7676)
 		{
 			this.owner = owner;
 			this.plugin = plugin;
 			this.resources = resources;
+
+			server = new(resources, logger, Options.Create<HttpLocalServer.Options>(new() { HttpPrefix = string.Concat(httpPrefix, "/", plugin), Port = httpPort }) );
 		}
 
 
@@ -28,7 +30,7 @@ namespace StarComputer.UI.Avalonia
 
 		public string? Address { get; private set; }
 
-		public IPlugin Plugin => plugin;
+		public PluginDomain Plugin => plugin;
 
 
 		public event EventHandler? NewPageLoaded;
@@ -38,6 +40,11 @@ namespace StarComputer.UI.Avalonia
 		public event Action? OnUIPostInitialized;
 
 
+		public void Initialize()
+		{
+			server.Start();
+		}
+
 		public HTMLPageLoadResult LoadEmptyPage()
 		{
 			Address = null;
@@ -46,12 +53,12 @@ namespace StarComputer.UI.Avalonia
 			return new();
 		}
 
-		public HTMLPageLoadResult LoadHTMLPage(string resourceName, PageConstructionBag constructionBag)
+		public HTMLPageLoadResult LoadHTMLPage(PluginResource resource, PageConstructionBag constructionBag)
 		{
 			string document;
 			if (pageConstructor is null)
 			{
-				using var reader = new StreamReader(resources.OpenRead(resourceName));
+				using var reader = new StreamReader(resources.ReadResource(resource));
 				var documentBuilder = new StringBuilder(reader.ReadToEnd());
 
 				foreach (var argument in constructionBag.ConstructionArguments)
@@ -59,15 +66,11 @@ namespace StarComputer.UI.Avalonia
 
 				document = documentBuilder.ToString();
 			}
-			else document = pageConstructor.ConstructHTMLPage(resourceName, constructionBag);
+			else document = pageConstructor.ConstructHTMLPage(resource, constructionBag);
 
-			using (var temporalFile = resources.OpenTemporalFile("HTML"))
-			{
-				var writer = new StreamWriter(temporalFile) { AutoFlush = true };
-				writer.Write(document);
-				Address = FilePathToFileUrl(temporalFile.Name);
-			}
+			server.ReplaceFile(new PluginResource("index.html"), document, "text/html");
 
+			Address = server.HttpPrefix + "index.html";
 			NewPageLoaded?.Invoke(this, EventArgs.Empty);
 
 			return new();
@@ -87,27 +90,6 @@ namespace StarComputer.UI.Avalonia
 		public dynamic? ExecuteJavaScriptFunction(string functionName, params object[] arguments)
 		{
 			return owner.ExecuteJavaScript(plugin, functionName, arguments);
-		}
-
-		private static string FilePathToFileUrl(string filePath)
-		{
-			var uri = new StringBuilder();
-			foreach (char v in filePath)
-			{
-				if ((v >= 'a' && v <= 'z') || (v >= 'A' && v <= 'Z') || (v >= '0' && v <= '9') ||
-				  v == '+' || v == '/' || v == ':' || v == '.' || v == '-' || v == '_' || v == '~' ||
-				  v > '\xFF') uri.Append(v);
-				else if (v == Path.DirectorySeparatorChar || v == Path.AltDirectorySeparatorChar)
-					uri.Append('/');
-				else uri.Append(string.Format("%{0:X2}", (int)v));
-			}
-
-			if (uri.Length >= 2 && uri[0] == '/' && uri[1] == '/') // UNC path
-				uri.Insert(0, "file:");
-			else
-				uri.Insert(0, "file:///");
-
-			return uri.ToString();
 		}
 
 		public void InitializePostUI()

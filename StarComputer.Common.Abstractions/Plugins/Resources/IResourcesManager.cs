@@ -2,11 +2,11 @@
 {
 	public interface IResourcesManager
 	{
-		public IPlugin TargetPlugin { get; }
+		public PluginDomain TargetPlugin { get; }
 
 
-		public FileStream OpenRead(string resourceName);
+		public IEnumerable<PluginResource> ListResources();
 
-		public FileStream OpenTemporalFile(string extension);
+		public Stream ReadResource(PluginResource resource);
 	}
 }
