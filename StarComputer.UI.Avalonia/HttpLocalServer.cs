@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using System.Net;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace StarComputer.UI.Avalonia
 {
@@ -85,7 +87,7 @@ namespace StarComputer.UI.Avalonia
 						continue;
 					}
 
-					var resource = new PluginResource(url.Substring(HttpPrefix.Length));
+					var resource = new PluginResource(url[HttpPrefix.Length..]);
 
 					if (replacements.TryGetValue(resource, out var memory))
 					{
@@ -99,6 +101,22 @@ namespace StarComputer.UI.Avalonia
 					else
 					{
 						var stream = resources.ReadResource(resource);
+
+						var metaResource = new PluginResource(resource.FullPath + ".meta.json");
+						if (resources.HasResource(metaResource))
+						{
+							using var metaStreamReader = new StreamReader(resources.ReadResource(metaResource));
+							var text = metaStreamReader.ReadToEnd();
+							var meta = JsonConvert.DeserializeObject<ResourceMetaModel>(text);
+
+							if (meta is not null && meta.ContentType is not null)
+							{
+								context.Response.ContentType = meta.ContentType;
+								if (meta.Charset is not null)
+									context.Response.ContentType += "; charset=" + meta.Charset;
+							}
+						}
+
 						await stream.CopyToAsync(outStream);
 						outStream.Close();
 					}
@@ -119,5 +137,7 @@ namespace StarComputer.UI.Avalonia
 		}
 
 		private record struct ResourceReplacement(ReadOnlyMemory<byte> Bytes, string ContentType, string? Charset);
+
+		private record class ResourceMetaModel([property: JsonPropertyName("contentType")] string? ContentType, [property: JsonPropertyName("charset")] string? Charset);
 	}
 }

@@ -36,5 +36,10 @@ namespace StarComputer.Common.Plugins.Resources
 		{
 			return File.OpenRead(Path.Combine(root, resource.FullPath));
 		}
+
+		public bool HasResource(PluginResource resource)
+		{
+			return File.Exists(Path.Combine(root, resource.FullPath));
+		}
 	}
 }

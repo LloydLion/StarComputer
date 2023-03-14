@@ -189,7 +189,7 @@ namespace StarComputer.Server
 						{
 							logger.Log(LogLevel.Trace, ExecutingNewTaskID, "Server started to execute new task");
 							flag = mainThreadDispatcher.ExecuteTask();
-						////}
+						}
 						catch (Exception ex)
 						{
 							logger.Log(LogLevel.Error, FailedToExecuteTaskID, ex, "Failed to execute some task");

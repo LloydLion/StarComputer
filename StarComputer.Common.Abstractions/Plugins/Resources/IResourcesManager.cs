@@ -8,5 +8,7 @@
 		public IEnumerable<PluginResource> ListResources();
 
 		public Stream ReadResource(PluginResource resource);
+
+		public bool HasResource(PluginResource resource);
 	}
 }
