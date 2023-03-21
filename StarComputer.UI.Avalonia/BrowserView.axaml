@@ -6,5 +6,7 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              Background="Red"
              x:Class="StarComputer.UI.Avalonia.BrowserView">
-  <Decorator x:Name="browserFrame"/>
+  <Grid x:Name="frame">
+    
+  </Grid>
 </UserControl>

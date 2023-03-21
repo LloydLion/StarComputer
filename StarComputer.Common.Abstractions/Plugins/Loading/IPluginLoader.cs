@@ -2,6 +2,6 @@
 {
 	public interface IPluginLoader
 	{
-		public ValueTask<IEnumerable<PluginLoadingProto>> LoadPluginsAsync();
+		public IEnumerable<PluginLoadingProto> LoadPlugins();
 	}
 }

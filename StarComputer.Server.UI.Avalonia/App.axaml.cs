@@ -10,15 +10,12 @@ namespace StarComputer.Server.UI.Avalonia
 {
 	public partial class App : Application
 	{
-		private IServiceProvider? services;
+		private InitializationData? initialization;
 
 
-		public IServiceProvider Services => services!;
-
-
-		public void Setup(IServiceProvider services)
+		public void Setup(IServiceProvider services, Action<dynamic> callback, dynamic parameter)
 		{
-			this.services = services; 
+			initialization = new(services, callback, parameter);
 		}
 
 		public override void Initialize()
@@ -42,13 +39,15 @@ namespace StarComputer.Server.UI.Avalonia
 			{
 				DataTemplates.Add(new ViewLocator());
 
-				while (services is null)
-					Thread.Sleep(10);
+				if (initialization is null)
+					throw new InvalidOperationException("Setup application before framework initialization completed");
+
+				initialization.Callback(initialization.Parameter);
 
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 				{
 					var window = new MainWindow();
-					window.Initialize(new MainWindowViewModel(services));
+					window.Initialize(new MainWindowViewModel(initialization.Services));
 
 					desktop.MainWindow = window;
 				}
@@ -56,5 +55,8 @@ namespace StarComputer.Server.UI.Avalonia
 
 			base.OnFrameworkInitializationCompleted();
 		}
+
+
+		private record InitializationData(IServiceProvider Services, Action<dynamic> Callback, dynamic Parameter);
 	}
 }

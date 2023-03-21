@@ -14,7 +14,6 @@ namespace StarComputer.Common.Abstractions.Plugins.UI.HTML
 
 		public void SetJSPluginContext(object contextObject);
 
-
-		public event Action OnUIPostInitialized;
+		public void OnUIPostInitialized(EventHandler handler);
 	}
 }

@@ -9,45 +9,28 @@ namespace StarComputer.UI.Avalonia
 	public class HTMLUIManager : IUIContextFactory<HTMLUIContext>
 	{
 		private readonly Dictionary<PluginDomain, HTMLUIContext> contexts = new();
+		private readonly IBrowserCollection browsers;
 		private readonly IResourcesCatalog resources;
 		private readonly ILogger<HTMLUIManager> logger;
 		private readonly Options options;
-		private PluginDomain? activePlugin;
-		private JavaScriptExecutor? executor;
+		private bool isPostInitialized;
 
 
-		public delegate dynamic? JavaScriptExecutor(PluginDomain caller, string functionName, object[] arguments);
-
-
-		public PluginDomain? ActivePlugin
+		public HTMLUIManager(IBrowserCollection browsers, IResourcesCatalog resources, ILogger<HTMLUIManager> logger, IOptions<Options> options)
 		{
-			get => activePlugin;
-			private set
-			{
-				activePlugin = value;
-
-				if (activePlugin is not null)
-					ActiveContext = contexts[activePlugin.Value];
-				else ActiveContext = null;
-
-				ContextChanged?.Invoke(ContextChangingType.ActivePluginChanged, ActiveContext);
-			}	
-		}
-
-		public HTMLUIContext? ActiveContext { get; private set; }
-
-		public IReadOnlyDictionary<PluginDomain, HTMLUIContext> Contexts => contexts;
-
-
-		public HTMLUIManager(IResourcesCatalog resources, ILogger<HTMLUIManager> logger, IOptions<Options> options)
-		{
+			this.browsers = browsers;
 			this.resources = resources;
 			this.logger = logger;
 			this.options = options.Value;
+
+
+			browsers.OnBrowserEnvironmentInitialized((sender, e) =>
+			{
+				isPostInitialized = true;
+				foreach (var item in contexts.Values)
+					item.InitializePostUI();
+			});
 		}
-
-
-		public event Action<ContextChangingType, HTMLUIContext?>? ContextChanged;
 
 
 		public HTMLUIContext CreateContext(PluginLoadingProto plugin)
@@ -55,10 +38,10 @@ namespace StarComputer.UI.Avalonia
 			if (contexts.ContainsKey(plugin.Domain)) return contexts[plugin.Domain];
 			else
 			{
-				var context = new HTMLUIContext(this, plugin.Domain, resources.GetResourcesFor(plugin.Domain), logger, options.UniqueHttpPrefix, options.HttpPort);
+				if (isPostInitialized)
+					throw new InvalidOperationException("Enable to create new HTML PUI context, UI already post initialized");
 
-				context.JSContextChanged += OnJSContextChanged;
-				context.NewPageLoaded += OnNewPageLoaded;
+				var context = new HTMLUIContext(browsers[plugin.Domain], plugin.Domain, resources.GetResourcesFor(plugin.Domain), logger, options.UniqueHttpPrefix, options.HttpPort);
 
 				contexts.Add(plugin.Domain, context);
 
@@ -66,45 +49,6 @@ namespace StarComputer.UI.Avalonia
 
 				return context;
 			}
-		}
-
-		public HTMLUIContext GetContext(PluginDomain plugin) => contexts[plugin];
-
-		public void SwitchPlugin(IPlugin? plugin)
-		{
-			ActivePlugin = plugin?.GetDomain();
-		}
-
-		public void SetJavaScriptExecutor(JavaScriptExecutor executor)
-		{
-			this.executor = executor;
-		}
-
-		public dynamic? ExecuteJavaScript(PluginDomain caller, string functionName, params object[] arguments)
-		{
-			if (executor is null)
-				throw new NullReferenceException("JavaScript executor was null");
-			return executor(caller, functionName, arguments);
-		}
-
-		private void OnJSContextChanged(object? sender, EventArgs _) =>
-			ContextChanged?.Invoke(ContextChangingType.JSContextChanged, (HTMLUIContext?)sender);
-
-		private void OnNewPageLoaded(object? sender, EventArgs _) =>
-			ContextChanged?.Invoke(ContextChangingType.AddressChanged, (HTMLUIContext?)sender);
-
-		public void InitializePostUI()
-		{
-			foreach (var context in contexts)
-				context.Value.InitializePostUI();
-		}
-
-
-		public enum ContextChangingType
-		{
-			ActivePluginChanged,
-			AddressChanged,
-			JSContextChanged
 		}
 
 

@@ -15,9 +15,9 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public MainWindowViewModel(IServiceProvider services)
 		{
-			var browserViewModel = new BrowserViewModel(services.GetRequiredService<HTMLUIManager>(), services.GetRequiredService<IThreadDispatcher<Action>>());
+			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>());
 			var connectionViewModel = new ConnectionViewModel(services.GetRequiredService<IClient>(), services.GetRequiredService<IOptions<ConnectionViewModel.Options>>());
-			var pluginSelectorViewModel = new PluginSelectorViewModel(services.GetRequiredService<HTMLUIManager>(), services.GetRequiredService<IPluginStore>());
+			var pluginSelectorViewModel = new PluginSelectorViewModel(browserViewModel, services.GetRequiredService<IPluginStore>());
 
 			client = services.GetRequiredService<IClient>();
 

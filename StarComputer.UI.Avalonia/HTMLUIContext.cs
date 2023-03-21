@@ -10,45 +10,38 @@ namespace StarComputer.UI.Avalonia
 	public class HTMLUIContext : IHTMLUIContext
 	{
 		private IHTMLPageConstructor? pageConstructor;
-		private readonly HTMLUIManager owner;
-		private readonly PluginDomain plugin;
+		private readonly PluginAvaloniaBrowser browser;
 		private readonly IResourcesManager resources;
 		private readonly HttpLocalServer server;
+		private EventHandler? uiPostInitHandler;
 
 
-		public HTMLUIContext(HTMLUIManager owner, PluginDomain plugin, IResourcesManager resources, ILogger logger, string httpPrefix, int httpPort = 7676)
+		public HTMLUIContext
+		(
+			PluginAvaloniaBrowser browser,
+			PluginDomain plugin,
+			IResourcesManager resources,
+			ILogger logger,
+			string httpPrefix,
+			int httpPort = 7676
+		)
 		{
-			this.owner = owner;
-			this.plugin = plugin;
+			this.browser = browser;
 			this.resources = resources;
 
 			server = new(resources, logger, Options.Create<HttpLocalServer.Options>(new() { HttpPrefix = string.Concat(httpPrefix, "/", plugin), Port = httpPort }) );
 		}
 
 
-		public object? JSContext { get; private set; }
-
-		public string? Address { get; private set; }
-
-		public PluginDomain Plugin => plugin;
-
-
-		public event EventHandler? NewPageLoaded;
-
-		public event EventHandler? JSContextChanged;
-
-		public event Action? OnUIPostInitialized;
-
-
 		public void Initialize()
 		{
 			server.Start();
+			LoadEmptyPage();
 		}
 
 		public HTMLPageLoadResult LoadEmptyPage()
 		{
-			Address = null;
-			NewPageLoaded?.Invoke(this, EventArgs.Empty);
+			browser.Navigate("gugpage.html", forceReload: true);
 
 			return new();
 		}
@@ -70,16 +63,16 @@ namespace StarComputer.UI.Avalonia
 
 			server.ReplaceFile(new PluginResource("index.html"), document, "text/html");
 
-			Address = server.HttpPrefix + "index.html";
-			NewPageLoaded?.Invoke(this, EventArgs.Empty);
+			var address = server.HttpPrefix + "index.html";
+
+			browser.Navigate(address, forceReload: true);
 
 			return new();
 		}
 
 		public void SetJSPluginContext(object contextObject)
 		{
-			JSContext = contextObject;
-			JSContextChanged?.Invoke(this, EventArgs.Empty);
+			browser.SetJavaScriptContext(contextObject);
 		}
 
 		public void UseHTMLPageConstructor(IHTMLPageConstructor? pageConstructor)
@@ -89,12 +82,17 @@ namespace StarComputer.UI.Avalonia
 
 		public dynamic? ExecuteJavaScriptFunction(string functionName, params object[] arguments)
 		{
-			return owner.ExecuteJavaScript(plugin, functionName, arguments);
+			return browser.ExecuteJavaScript(functionName, arguments);
 		}
 
-		public void InitializePostUI()
+		public void OnUIPostInitialized(EventHandler handler)
 		{
-			OnUIPostInitialized?.Invoke();
+			uiPostInitHandler = handler;
+		}
+
+		internal void InitializePostUI()
+		{
+			uiPostInitHandler?.Invoke(this, EventArgs.Empty);
 		}
 	}
 }

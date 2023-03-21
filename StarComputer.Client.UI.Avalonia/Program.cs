@@ -21,14 +21,13 @@ using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Plugins.Resources;
 using StarComputer.UI.Avalonia;
+using Avalonia.Threading;
+using StarComputer.Server.Abstractions;
 
 namespace StarComputer.Client.UI.Avalonia
 {
 	public static class Program
 	{
-		private static IServiceProvider? services;
-
-
 		[STAThread]
 		public static void Main(string[] args)
 		{
@@ -43,7 +42,12 @@ namespace StarComputer.Client.UI.Avalonia
 			Console.WriteLine("Using configuration: " + config.GetDebugView());
 			Console.WriteLine();
 
-			services = new ServiceCollection()
+			var clientThread = new Thread(ClientThreadHandle)
+			{
+				Name = "Client thread"
+			};
+
+			var services = new ServiceCollection()
 				.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
 				.Configure<FileResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 				.Configure<ReflectionPluginLoader.Options>(s =>
@@ -69,10 +73,12 @@ namespace StarComputer.Client.UI.Avalonia
 				.AddSingleton<IClient, Client>()
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
-				.AddSingleton<HTMLUIManager>()
 				.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
 
-				.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
+				.AddSingleton<HTMLUIManager>()
+				.AddSingleton<IBrowserCollection, BrowserCollection>()
+
+				.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(clientThread, s => s()))
 				
 				.AddSingleton<IBodyTypeResolver, BodyTypeResolver>()
 
@@ -84,14 +90,32 @@ namespace StarComputer.Client.UI.Avalonia
 				.BuildServiceProvider();
 
 
-			var lservices = services!;
-			var client = lservices.GetRequiredService<IClient>();
-			var uiManager = lservices.GetRequiredService<HTMLUIManager>();
+			Thread.CurrentThread.Name = "Main UI Thread";
 
-			SynchronizationContext.SetSynchronizationContext(lservices.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
+			var avaloniaAppBuider = BuildAvaloniaApp();
 
-			var plugins = lservices.GetRequiredService<IPluginStore>();
-			var pluginLoader = lservices.GetRequiredService<IPluginLoader>();
+			avaloniaAppBuider.AfterSetup(avaloniaAppBuider =>
+			{
+				var avaloniaApp = (App)avaloniaAppBuider.Instance!;
+				avaloniaApp.Setup(services, AvaloniaCallback, new { ClientThread = clientThread, Services = services });
+			});
+
+			avaloniaAppBuider.StartWithClassicDesktopLifetime(args);
+		}
+
+
+		private static void AvaloniaCallback(dynamic parameters)
+		{
+			IServiceProvider services = parameters.Services;
+			Thread clientThread = parameters.ClientThread;
+
+			var cevent = new AutoResetEvent(false);
+
+			var client = services.GetRequiredService<IClient>();
+			var uiManager = services.GetRequiredService<HTMLUIManager>();
+
+			var plugins = services.GetRequiredService<IPluginStore>();
+			var pluginLoader = services.GetRequiredService<IPluginLoader>();
 			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 
 			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder);
@@ -104,42 +128,38 @@ namespace StarComputer.Client.UI.Avalonia
 				ps.Register<IProtocolEnvironment>(env);
 			});
 
-			plugins.InitializeStoreAsync(pluginLoader, pluginInitializer).AsTask().Wait();
+			plugins.InitializeStore(pluginLoader, pluginInitializer);
 
-			bodyTypeResolverBuilder.BakeToResolver(lservices.GetRequiredService<IBodyTypeResolver>());
+			bodyTypeResolverBuilder.BakeToResolver(services.GetRequiredService<IBodyTypeResolver>());
 
-
-			var clientThread = new Thread(ClientThreadHandle);
-			clientThread.Start();
-			Thread.CurrentThread.Name = "Main UI Thread";
-
-
-			var avaloniaAppBuider = BuildAvaloniaApp();
-
-			avaloniaAppBuider.AfterSetup(avaloniaAppBuider =>
+			clientThread.Start(new
 			{
-				var avaloniaApp = (App)avaloniaAppBuider.Instance!;
-				avaloniaApp.Setup(services!);
+				Services = services,
+				InitializationEvent = cevent,
+				Client = client,
+				Plugins = plugins
 			});
 
-			avaloniaAppBuider.StartWithClassicDesktopLifetime(args);
+			cevent.WaitOne();
 		}
 
-
-		static void ClientThreadHandle()
+		private static void ClientThreadHandle(object? rawParameters)
 		{
-			Thread.CurrentThread.Name = "Client thread";
+			dynamic parameters = rawParameters ?? throw new NullReferenceException();
 
-			var lservices = services!;
-			var client = lservices.GetRequiredService<IClient>();
-			var plugins = lservices.GetRequiredService<IPluginStore>();
+			IServiceProvider services = parameters.Services;
+			AutoResetEvent cevent = parameters.InitializationEvent;
+			IClient client = parameters.Client;
+			IPluginStore plugins = parameters.Plugins;
 
-			SynchronizationContext.SetSynchronizationContext(lservices.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
+			SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
+
+			cevent.Set();
 
 			client.MainLoop(plugins);
 		}
 
-		static AppBuilder BuildAvaloniaApp()
+		private static AppBuilder BuildAvaloniaApp()
 		{
 			return AppBuilder.Configure<App>()
 				.UsePlatformDetect()

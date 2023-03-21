@@ -27,7 +27,7 @@ namespace StarComputer.Common.Plugins.Loading
 		}
 
 
-		public ValueTask<IEnumerable<PluginLoadingProto>> LoadPluginsAsync()
+		public IEnumerable<PluginLoadingProto> LoadPlugins()
 		{
 			var plugins = new List<PluginLoadingProto>();
 
@@ -80,7 +80,7 @@ namespace StarComputer.Common.Plugins.Loading
 				}
 			}
 
-			return ValueTask.FromResult<IEnumerable<PluginLoadingProto>>(plugins);
+			return plugins;
 		}
 
 

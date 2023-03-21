@@ -23,9 +23,9 @@ namespace StarComputer.Common.Plugins
 		public int Count => IfInitialized(plugins.Count);
 
 
-		public async ValueTask InitializeStoreAsync(IPluginLoader loader, IPluginInitializer initializer)
+		public void InitializeStore(IPluginLoader loader, IPluginInitializer initializer)
 		{
-			var data = await loader.LoadPluginsAsync();
+			var data = loader.LoadPlugins();
 
 			var plugins = initializer.InitializePlugins(data);
 

@@ -7,6 +7,6 @@ namespace StarComputer.Common.Abstractions.Plugins
 		public bool IsInitialized { get; }
 
 
-		public ValueTask InitializeStoreAsync(IPluginLoader loader, IPluginInitializer initializer);
+		public void InitializeStore(IPluginLoader loader, IPluginInitializer initializer);
 	}
 }

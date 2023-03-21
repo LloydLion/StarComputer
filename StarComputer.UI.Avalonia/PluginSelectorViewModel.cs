@@ -4,13 +4,13 @@ namespace StarComputer.UI.Avalonia
 {
 	public class PluginSelectorViewModel : ViewModelBase
 	{
-		private readonly HTMLUIManager uiManager;
+		private readonly IPluginChangeHandler handler;
 
 
-		public PluginSelectorViewModel(HTMLUIManager uiManager, IPluginStore plugins)
+		public PluginSelectorViewModel(IPluginChangeHandler handler, IPluginStore plugins)
 		{
 			Plugins = plugins.Select(s => new VisualPlugin(s.Value));
-			this.uiManager = uiManager;
+			this.handler = handler;
 		}
 
 
@@ -20,9 +20,9 @@ namespace StarComputer.UI.Avalonia
 		public void SwitchPlugin(object? plugin)
 		{
 			if (plugin is null)
-				uiManager.SwitchPlugin(null);
+				handler.SwitchPlugin(null);
 			else if (plugin is VisualPlugin vp)
-				uiManager.SwitchPlugin(vp.Plugin);
+				handler.SwitchPlugin(vp.Plugin);
 			else throw new ArgumentException("Invalid type of plugin", nameof(plugin));
 		}
 
@@ -34,5 +34,10 @@ namespace StarComputer.UI.Avalonia
 				return $"{Plugin.GetDomain()} [{Plugin.GetType().FullName}|{Plugin.Version}]";
 			}
 		}
+	}
+
+	public interface IPluginChangeHandler
+	{
+		public void SwitchPlugin(IPlugin? plugin);
 	}
 }
