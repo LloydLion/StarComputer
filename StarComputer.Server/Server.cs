@@ -84,6 +84,10 @@ namespace StarComputer.Server
 
 		public event Action? ListeningStatusChanged;
 
+		public event Action<ServerSideClient>? ClientConnected;
+
+		public event Action<ServerSideClient>? ClientDisconnected;
+
 
 		public ValueTask ListenAsync()
 		{
@@ -139,6 +143,7 @@ namespace StarComputer.Server
 					try { clientTask.Wait(); } catch (Exception) { }
 					connectionListener.Stop();
 
+					//TODO: Danger place, fix bug
 					foreach (var agent in agents)
 						agent.Value.ProtocolAgent.Disconnect();
 
@@ -276,6 +281,7 @@ namespace StarComputer.Server
 							IRemoteProtocolAgent remote = new RemoteProtocolAgent(client, agentWorker, logger, bodyTypeResolver);
 							remote.Start();
 							agents.Add(remote.UniqueAgentId, new(information, port, remote));
+							ClientConnected?.Invoke(new(information, remote));
 						});
 					}
 					else
@@ -436,8 +442,10 @@ namespace StarComputer.Server
 
 				owner.mainThreadDispatcher.DispatchTask(() =>
 				{
-					owner.agents[agent.UniqueAgentId].RentedPort.Dispose();
+					var internalClient = owner.agents[agent.UniqueAgentId];
+					internalClient.RentedPort.Dispose();
 					owner.agents.Remove(agent.UniqueAgentId);
+					owner.ClientDisconnected?.Invoke(new(internalClient.ConnectionInformation, internalClient.ProtocolAgent));
 				});
 			}
 

@@ -61,7 +61,7 @@ namespace StarComputer.Common.Plugins.Loading
 								var typeCache = pluginType;
 								plugins.Add(new(domain, (services) =>
 								{
-									return (IPlugin)Activator.CreateInstance(typeCache, services)!;
+									return ResolveInstance<IPlugin>(services, typeCache);
 								}));
 
 								logger.Log(LogLevel.Information, PluginLoadedID, "Plugin ({Domain}[{PluginType}]) loaded successfully from {FileLocation}",
@@ -81,6 +81,33 @@ namespace StarComputer.Common.Plugins.Loading
 			}
 
 			return plugins;
+		}
+
+		private static TObject ResolveInstance<TObject>(IServiceProvider services, Type? typeOfObject = null) where TObject : class
+		{
+			typeOfObject ??= typeof(TObject);
+
+			var ctors = typeOfObject.GetConstructors();
+
+			foreach (var ctor in ctors)
+			{
+				var parameters = ctor.GetParameters();
+				var ctorArguments = new object?[parameters.Length];
+
+				for (int i = 0; i < parameters.Length; i++)
+				{
+					var parameter = parameters[i];
+					var service = services.GetService(parameter.ParameterType);
+					if (service is null) goto skipCtor;
+					ctorArguments[i] = service;
+				}
+
+				return (TObject)ctor.Invoke(ctorArguments);
+
+				skipCtor:;
+			}
+
+			throw new Exception($"Enable to resolve object of type {typeOfObject}");
 		}
 
 

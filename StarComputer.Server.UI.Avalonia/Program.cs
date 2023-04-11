@@ -22,6 +22,9 @@ using StarComputer.Common.Plugins.Resources;
 using StarComputer.UI.Avalonia;
 using StarComputer.Server.Abstractions;
 using StarComputer.Server.DebugEnv;
+using System.Threading.Tasks;
+using StarComputer.Common.Plugins.Persistence;
+using StarComputer.Common.Abstractions.Plugins.Persistence;
 
 namespace StarComputer.Server.UI.Avalonia
 {
@@ -54,12 +57,14 @@ namespace StarComputer.Server.UI.Avalonia
 					s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
 				})
 				.Configure<HTMLUIManager.Options>(config.GetSection("HTMLPUI"))
+				.Configure<FileBasedPluginPersistenceServiceProvider.Options>(s => config.GetSection("PluginPersistence").Bind(s))
 
 				.AddSingleton<IServer, Server>()
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
 				.AddTransient<IClientApprovalAgent, GugApprovalAgent>()
 				.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
+				.AddSingleton<IPluginPersistenceServiceProvider, FileBasedPluginPersistenceServiceProvider>()
 
 				.AddSingleton<HTMLUIManager>()
 				.AddSingleton<IBrowserCollection, BrowserCollection>()
@@ -94,7 +99,9 @@ namespace StarComputer.Server.UI.Avalonia
 			IServiceProvider services = parameters.Services;
 			Thread serverThread = parameters.ServerThread;
 
-			var cevent = new AutoResetEvent(false);
+			var initializationTask = new AutoResetEvent(false);
+
+			var targetSynchronizationContext = services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s);
 
 			var server = services.GetRequiredService<IServer>();
 			var uiManager = services.GetRequiredService<HTMLUIManager>();
@@ -102,11 +109,13 @@ namespace StarComputer.Server.UI.Avalonia
 			var plugins = services.GetRequiredService<IPluginStore>();
 			var pluginLoader = services.GetRequiredService<IPluginLoader>();
 			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
+			var pluginPersistenceServiceProvider = services.GetRequiredService<IPluginPersistenceServiceProvider>();
 
-			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder);
+			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder, SynchronizationContext.Current!);
 			pluginInitializer.SetServices((sp, proto) =>
 			{
 				sp.Register<IHTMLUIContext>(uiManager.CreateContext(proto));
+				sp.Register(pluginPersistenceServiceProvider.Provide(proto.Domain));
 
 				var env = new ServerProtocolEnvironment(server, proto);
 				sp.Register<IServerProtocolEnvironment>(env);
@@ -119,13 +128,12 @@ namespace StarComputer.Server.UI.Avalonia
 
 			serverThread.Start(new
 			{
+				SynchronizationContext = targetSynchronizationContext,
 				Services = services,
-				InitializationEvent = cevent,
-				Server = server,
-				Plugins = plugins
+				InitializationTask = initializationTask
 			});
 
-			cevent.WaitOne();
+			initializationTask.WaitOne();
 		}
 
 		private static void ServerThreadHandle(object? rawParameters)
@@ -133,14 +141,13 @@ namespace StarComputer.Server.UI.Avalonia
 			dynamic parameters = rawParameters ?? throw new NullReferenceException();
 
 			IServiceProvider services = parameters.Services;
-			AutoResetEvent cevent = parameters.InitializationEvent;
-			IServer server = parameters.Server;
-			IPluginStore plugins = parameters.Plugins;
+			AutoResetEvent initializationTask = parameters.InitializationTask;
 
 			SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
+			var server = services.GetRequiredService<IServer>();
+			var plugins = services.GetRequiredService<IPluginStore>();
 
-			cevent.Set();
-
+			initializationTask.Set();
 			server.MainLoop(plugins);
 		}
 

@@ -36,5 +36,10 @@
 	{
 		"UniqueHttpPrefix": "starComputer/client",
 		"HttpPort": 7676
+	},
+
+	"PluginPersistence":
+	{
+		"BasePath": "persistence"
 	}
 }

@@ -5,6 +5,7 @@ using Avalonia.Markup.Xaml;
 using System;
 using System.Threading;
 using StarComputer.UI.Avalonia;
+using System.Threading.Tasks;
 
 namespace StarComputer.Server.UI.Avalonia
 {

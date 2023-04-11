@@ -1,4 +1,5 @@
-﻿using StarComputer.Common.Abstractions.Protocol;
+﻿using StarComputer.Common.Abstractions.Plugins.Protocol;
+using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 
 namespace StarComputer.Common.Abstractions.Plugins
@@ -10,6 +11,6 @@ namespace StarComputer.Common.Abstractions.Plugins
 
 		public void Initialize(IBodyTypeResolverBuilder resolverBuilder);
 
-		public ValueTask ProcessMessageAsync(ProtocolMessage message, MessageContext messageContext);
+		public ValueTask ProcessMessageAsync(PluginProtocolMessage message, MessageContext messageContext);
 	}
 }

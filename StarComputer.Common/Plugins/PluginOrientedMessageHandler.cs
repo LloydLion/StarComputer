@@ -37,7 +37,8 @@ namespace StarComputer.Common.Plugins
 					agentsCache.Add((agent, plugin), pluginAgent);
 				}
 
-				await plugin.ProcessMessageAsync(message, new MessageContext(pluginAgent));
+				var pluginProtocolMessage = new PluginProtocolMessage(message.Body, message.Attachments?.Select(s => new PluginProtocolMessage.Attachment(s.Value.Name, s.Value.CopyDelegate, s.Value.Length)));
+				await plugin.ProcessMessageAsync(pluginProtocolMessage, new MessageContext(pluginAgent));
 			}
 			else
 			{

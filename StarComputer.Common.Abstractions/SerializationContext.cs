@@ -33,9 +33,19 @@ namespace StarComputer.Common.Abstractions
 
 		public abstract object? SubDeserialize(object? mediateObject, Type objectType);
 
-		public TObject Deserialize<TObject>(string value) where TObject : notnull => (TObject)(Deserialize(value, typeof(TObject)) ?? throw new NullReferenceException());
+		public TObject Deserialize<TObject>(string value) where TObject : notnull
+		{
+			var valueObject = Deserialize(value, typeof(TObject));
+			if (valueObject is null) return Activator.CreateInstance<TObject>();
+			else return (TObject)valueObject;
+		}
 
-		public TObject SubDeserialize<TObject>(object mediateObject) where TObject : notnull => (TObject)(SubDeserialize(mediateObject, typeof(TObject)) ?? throw new NullReferenceException());
+		public TObject SubDeserialize<TObject>(object mediateObject) where TObject : notnull
+		{
+			var valueObject = SubDeserialize(mediateObject, typeof(TObject));
+			if (valueObject is null) return Activator.CreateInstance<TObject>();
+			else return (TObject)valueObject;
+		}
 
 
 		private class JsonSerializationContext : SerializationContext

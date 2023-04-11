@@ -11,7 +11,7 @@
 		<br/>
 		<input type="input" id="textBox"/>
 		<button onClick="sendMessage()">Send message</button>
-		<button onClick="uploadFile()">Upload</button>
+		<button onClick="alert('Not implemented')">Upload</button>
 
 		<script type="text/javascript">
 			const initialMessages = {{InitialMessages}};
@@ -25,32 +25,14 @@
 				const list = document.getElementById("messages");
 				const div = document.createElement("div");
 
-				var message = messagesList[i];
-
-				if (message.Type == 0)
+				if (message.Type == "Text")
 				{
 					div.append("" + message.Author + ": " + message.Content);
 				}
-				else if (message.Type == 1)
+				else if (message.Type == "File")
 				{
 					var downloadBtn = document.createElement("button");
 					button.append(message.Content);
-					button.addEventListener("click", async function()
-					{
-							var fileData = await context.getFileBinaries(message.Content);
-							var intsArray = fileData.data;
-							var buffer = new ArrayBuffer(fileData.realLength);
-							new Uint8Array(buffer).set(new Uint8Array(intsArray));
-
-							var blob = new Blob(buffer);
-							var url = window.URL.createObjectUrl(blob);
-
-							var a = document.createElement("a");
-							a.href = url;
-							a.download = "some file";
-							a.click();
-							URL.revokeObjectURL();
-					});
 				}
 				else
 				{
@@ -66,43 +48,8 @@
 			async function sendMessage()
 			{
 				const textbox = document.getElementById("textBox");
-				await context.sendMessage(null, textbox.value, 0);
-				visualizeMessageCS({Author: "You", Content: textbox.value, Type: 0});
+				await context.sendMessage(textbox.value, "Text");
 				textbox.value = "";
-			}
-
-			function uploadFile()
-			{
-				var input = document.createElement("input");
-				input.type = "file";
-
-				input.onchange = e =>
-				{
-					var file = e.target.files[0];
-					var reader = new FileReader();
-
-					reader.onload = async re =>
-					{
-						var lastIndexOfDot = file.name.lastIndexOf('.');
-						var extension = file.name.substr(lastIndexOfDot + 1);
-						var filename = file.name.substr(0, lastIndexOfDot);
-
-						var result = re.target.result;
-
-						var uint8Array = Array.from(new Uint8Array(result));
-
-						alert("!1");
-						var uuid = await context.uploadFile(filename, extension, uint8Array);
-						alert("!2");
-
-						const reciver = selectedPage == "Broadcast" ? null : selectedPage.substring(1);
-						await context.sendMessage(reciver, uuid, 1);
-					};
-
-					reader.readAsArrayBuffer(file);
-				};
-
-				input.click();
 			}
 		</script>
 	</body>

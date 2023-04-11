@@ -18,6 +18,8 @@ using StarComputer.Common.Protocol.Bodies;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Plugins.Resources;
+using StarComputer.Common.Abstractions.Plugins.Persistence;
+using StarComputer.Common.Plugins.Persistence;
 
 var config = new ConfigurationBuilder().SetBasePath(Directory.GetCurrentDirectory()).AddJsonFile(
 #if DEBUG
@@ -38,6 +40,7 @@ var services = new ServiceCollection()
 	})
 	.Configure<ReflectionPluginLoader.Options>(s => s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!)
 	.Configure<FileResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
+	.Configure<FileBasedPluginPersistenceServiceProvider.Options>(s => config.GetSection("PluginPersistence").Bind(s))
 
 	.AddSingleton<IServer, Server>()
 
@@ -45,6 +48,7 @@ var services = new ServiceCollection()
 	.AddTransient<IClientApprovalAgent, GugApprovalAgent>()
 	.AddTransient<IConsoleUIContext, ConsoleUIContext>()
 	.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
+	.AddSingleton<IPluginPersistenceServiceProvider, FileBasedPluginPersistenceServiceProvider>()
 
 	.AddSingleton<IThreadDispatcher<Action>>(new ThreadDispatcher<Action>(Thread.CurrentThread, s => s()))
 
@@ -66,18 +70,20 @@ SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<ITh
 var plugins = services.GetRequiredService<IPluginStore>();
 var pluginLoader = services.GetRequiredService<IPluginLoader>();
 var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
+var pluginPersistenceServiceProvider = services.GetRequiredService<IPluginPersistenceServiceProvider>();
 
 var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder);
 pluginInitializer.SetServices((sp, proto) =>
 {
 	sp.Register(ui);
+	sp.Register(pluginPersistenceServiceProvider.Provide(proto.Domain));
 
 	var env = new ServerProtocolEnvironment(server, proto);
 	sp.Register<IServerProtocolEnvironment>(env);
 	sp.Register<IProtocolEnvironment>(env);
 });
 
-await plugins.InitializeStoreAsync(pluginLoader, pluginInitializer);
+plugins.InitializeStore(pluginLoader, pluginInitializer);
 
 bodyTypeResolverBuilder.BakeToResolver(services.GetRequiredService<IBodyTypeResolver>());
 

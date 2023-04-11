@@ -26,14 +26,13 @@ namespace StarComputer.Client
 
 		public ConnectionConfiguration GetConnectionConfiguration()
 		{
-			throw new NotImplementedException();
+			return client.GetConnectionConfiguration();
 		}
 
 		public IPluginRemoteAgent GetServerAgent()
 		{
 			return new PluginRemoteAgent(client.GetServerAgent(), targetPluginDomain);
 		}
-
 
 
 		public event Action? ClientConnected

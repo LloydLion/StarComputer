@@ -1,5 +1,4 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
-using StarComputer.Common.Abstractions.Protocol;
 
 namespace StarComputer.Server.Abstractions
 {
@@ -9,6 +8,10 @@ namespace StarComputer.Server.Abstractions
 
 
 		public event Action ListeningStatusChanged;
+
+		public event Action<ServerSideClient> ClientConnected;
+
+		public event Action<ServerSideClient> ClientDisconnected;
 
 
 		public ValueTask ListenAsync();

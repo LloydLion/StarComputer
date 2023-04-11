@@ -30,5 +30,10 @@
 	{
 		"Path": "resources",
 		"TemporalFileName": "temporal.starcomputer"
+	},
+
+	"PluginPersistence":
+	{
+		"BasePath": "persistence"
 	}
 }

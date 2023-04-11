@@ -23,6 +23,9 @@ using StarComputer.Common.Plugins.Resources;
 using StarComputer.UI.Avalonia;
 using Avalonia.Threading;
 using StarComputer.Server.Abstractions;
+using System.Threading.Tasks;
+using StarComputer.Common.Plugins.Persistence;
+using StarComputer.Common.Abstractions.Plugins.Persistence;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -69,11 +72,13 @@ namespace StarComputer.Client.UI.Avalonia
 						configSection.GetValue<string>("Login")!);
 				})
 				.Configure<HTMLUIManager.Options>(config.GetSection("HTMLPUI"))
+				.Configure<FileBasedPluginPersistenceServiceProvider.Options>(s => config.GetSection("PluginPersistence").Bind(s))
 
 				.AddSingleton<IClient, Client>()
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
 				.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
+				.AddSingleton<IPluginPersistenceServiceProvider, FileBasedPluginPersistenceServiceProvider>()
 
 				.AddSingleton<HTMLUIManager>()
 				.AddSingleton<IBrowserCollection, BrowserCollection>()
@@ -109,7 +114,9 @@ namespace StarComputer.Client.UI.Avalonia
 			IServiceProvider services = parameters.Services;
 			Thread clientThread = parameters.ClientThread;
 
-			var cevent = new AutoResetEvent(false);
+			var initializationTask = new AutoResetEvent(false);
+
+			var targetSynchronizationContext = services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s);
 
 			var client = services.GetRequiredService<IClient>();
 			var uiManager = services.GetRequiredService<HTMLUIManager>();
@@ -117,11 +124,13 @@ namespace StarComputer.Client.UI.Avalonia
 			var plugins = services.GetRequiredService<IPluginStore>();
 			var pluginLoader = services.GetRequiredService<IPluginLoader>();
 			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
+			var pluginPersistenceServiceProvider = services.GetRequiredService<IPluginPersistenceServiceProvider>();
 
-			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder);
+			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder, targetSynchronizationContext);
 			pluginInitializer.SetServices((ps, proto) =>
 			{
 				ps.Register<IHTMLUIContext>(uiManager.CreateContext(proto));
+				ps.Register(pluginPersistenceServiceProvider.Provide(proto.Domain));
 
 				var env = new ClientProtocolEnvironment(client, proto);
 				ps.Register<IClientProtocolEnviroment>(env);
@@ -134,13 +143,12 @@ namespace StarComputer.Client.UI.Avalonia
 
 			clientThread.Start(new
 			{
+				SynchronizationContext = targetSynchronizationContext,
 				Services = services,
-				InitializationEvent = cevent,
-				Client = client,
-				Plugins = plugins
+				InitializationTask = initializationTask
 			});
 
-			cevent.WaitOne();
+			initializationTask.WaitOne();
 		}
 
 		private static void ClientThreadHandle(object? rawParameters)
@@ -148,14 +156,14 @@ namespace StarComputer.Client.UI.Avalonia
 			dynamic parameters = rawParameters ?? throw new NullReferenceException();
 
 			IServiceProvider services = parameters.Services;
-			AutoResetEvent cevent = parameters.InitializationEvent;
-			IClient client = parameters.Client;
-			IPluginStore plugins = parameters.Plugins;
+			AutoResetEvent initializationTask = parameters.InitializationTask;
+			SynchronizationContext synchronizationContext = parameters.SynchronizationContext;
 
-			SynchronizationContext.SetSynchronizationContext(services.GetRequiredService<IThreadDispatcher<Action>>().CraeteSynchronizationContext(s => s));
+			SynchronizationContext.SetSynchronizationContext(synchronizationContext);
+			var client = services.GetRequiredService<IClient>();
+			var plugins = services.GetRequiredService<IPluginStore>();
 
-			cevent.Set();
-
+			initializationTask.Set();
 			client.MainLoop(plugins);
 		}
 

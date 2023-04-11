@@ -7,12 +7,14 @@ namespace StarComputer.Common.Plugins
 	public class PluginInitializer : IPluginInitializer
 	{
 		private readonly IBodyTypeResolverBuilder resolverBuilder;
+		private readonly SynchronizationContext targetSynchronizationContext;
 		private Action<PluginServiceProvider, PluginLoadingProto>? serviceCreator;
 
 
-		public PluginInitializer(IBodyTypeResolverBuilder resolverBuilder)
+		public PluginInitializer(IBodyTypeResolverBuilder resolverBuilder, SynchronizationContext targetSynchronizationContext)
 		{
 			this.resolverBuilder = resolverBuilder;
+			this.targetSynchronizationContext = targetSynchronizationContext;
 		}
 
 
@@ -34,7 +36,10 @@ namespace StarComputer.Common.Plugins
 
 				resolverBuilder.SetupDomain(instance.GetDomain());
 
+				var prevContext = SynchronizationContext.Current;
+				SynchronizationContext.SetSynchronizationContext(targetSynchronizationContext);
 				instance.Initialize(resolverBuilder);
+				SynchronizationContext.SetSynchronizationContext(prevContext);
 
 				yield return instance;
 			}

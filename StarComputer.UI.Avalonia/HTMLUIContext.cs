@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
+using System.Reflection.Metadata;
 using System.Text;
 
 namespace StarComputer.UI.Avalonia
@@ -80,7 +81,7 @@ namespace StarComputer.UI.Avalonia
 			this.pageConstructor = pageConstructor;
 		}
 
-		public dynamic? ExecuteJavaScriptFunction(string functionName, params object[] arguments)
+		public dynamic? ExecuteJavaScriptFunction(string functionName, params object?[] arguments)
 		{
 			return browser.ExecuteJavaScript(functionName, arguments);
 		}
@@ -93,6 +94,16 @@ namespace StarComputer.UI.Avalonia
 		internal void InitializePostUI()
 		{
 			uiPostInitHandler?.Invoke(this, EventArgs.Empty);
+		}
+
+		public void ShareResource(PluginResource resource, ReadOnlyMemory<byte> fileData, string contentType, string? charset = null)
+		{
+			server.ReplaceFile(resource, fileData, contentType, charset);
+		}
+
+		public void StopResourceShare(PluginResource resource)
+		{
+			server.CancelFileReplacement(resource);
 		}
 	}
 }

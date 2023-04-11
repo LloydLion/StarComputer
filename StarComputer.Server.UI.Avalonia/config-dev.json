@@ -27,5 +27,10 @@
 	{
 		"UniqueHttpPrefix": "starComputer/server",
 		"HttpPort": 7678
+	},
+
+	"PluginPersistence":
+	{
+		"BasePath": "persistenceDev"
 	}
 }

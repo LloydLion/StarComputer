@@ -32,5 +32,16 @@ namespace StarComputer.Common.Plugins.Protocol
 
 			return agent.SendMessageAsync(protocolMessage);
 		}
+
+
+		public override bool Equals(object? obj)
+		{
+			return obj is PluginRemoteAgent other && other.UniqueAgentId == UniqueAgentId;
+		}
+
+		public override int GetHashCode()
+		{
+			return UniqueAgentId.GetHashCode();
+		}
 	}
 }

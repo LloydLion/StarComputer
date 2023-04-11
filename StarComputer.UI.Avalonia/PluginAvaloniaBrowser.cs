@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Dynamic;
 using System.Runtime.CompilerServices;
 using Xilium.CefGlue.Avalonia;
+using Xilium.CefGlue.Common.Events;
 
 namespace StarComputer.UI.Avalonia
 {
@@ -60,7 +61,27 @@ namespace StarComputer.UI.Avalonia
 		public void Navigate(string? url, bool forceReload = false)
 		{
 			if (browser.Address != url || forceReload)
-				browser.Address = url;
+			{
+				if (Dispatcher.UIThread.CheckAccess())
+				{
+					browser.Address = url;
+				}
+				else
+				{
+					var loadEvent = new AutoResetEvent(false);
+					browser.LoadEnd += handle;
+					browser.Address = url;
+					loadEvent.WaitOne();
+					browser.LoadEnd -= handle;
+
+
+
+					void handle(object sender, LoadEndEventArgs args)
+					{
+						loadEvent.Set();
+					}
+				}
+			}
 		}
 
 		public void ForceReload()
@@ -68,7 +89,7 @@ namespace StarComputer.UI.Avalonia
 			browser.Address = CurrentUrl;
 		}
 
-		public dynamic? ExecuteJavaScript(string functionName, params object[] arguments)
+		public dynamic? ExecuteJavaScript(string functionName, params object?[] arguments)
 		{
 			if (IsInitialized == false)
 				throw new InvalidOperationException("Enable to execute JS code before initialization");
@@ -113,6 +134,12 @@ namespace StarComputer.UI.Avalonia
 			}
 		}
 
+		public void SetDevtoolsVisibility(bool status)
+		{
+			if (status)
+				browser.ShowDeveloperTools();
+			else browser.CloseDeveloperTools();
+		}
 
 		private void SetAndNotify<T>(ref T variable, T newValue, [CallerMemberName] string propertyName = "Auto generated")
 		{

@@ -8,12 +8,16 @@ namespace StarComputer.Common.Abstractions.Plugins.UI.HTML
 
 		public HTMLPageLoadResult LoadHTMLPage(PluginResource resource, PageConstructionBag constructionBag);
 
-		public dynamic? ExecuteJavaScriptFunction(string functionName, params object[] arguments);
+		public dynamic? ExecuteJavaScriptFunction(string functionName, params object?[] arguments);
 
 		public void UseHTMLPageConstructor(IHTMLPageConstructor? pageConstructor);
 
 		public void SetJSPluginContext(object contextObject);
 
 		public void OnUIPostInitialized(EventHandler handler);
+
+		public void ShareResource(PluginResource resource, ReadOnlyMemory<byte> fileData, string contentType, string? charset = null);
+
+		public void StopResourceShare(PluginResource resource);
 	}
 }
