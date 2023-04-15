@@ -111,7 +111,7 @@ namespace StarComputer.Server.UI.Avalonia
 			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 			var pluginPersistenceServiceProvider = services.GetRequiredService<IPluginPersistenceServiceProvider>();
 
-			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder, SynchronizationContext.Current!);
+			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder, targetSynchronizationContext);
 			pluginInitializer.SetServices((sp, proto) =>
 			{
 				sp.Register<IHTMLUIContext>(uiManager.CreateContext(proto));

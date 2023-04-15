@@ -50,7 +50,8 @@ namespace StarComputer.Common.Plugins.Persistence
 
 		public async ValueTask SaveRawDataAsync(PersistenceAddress address, ReadOnlyMemory<byte> bytes)
 		{
-			using var stream = File.OpenWrite(Path.Combine(basePath, address.Path));
+			var path = Path.Combine(basePath, address.Path);
+			using var stream = File.OpenWrite(path);
 			await stream.WriteAsync(bytes);
 		}
 	}

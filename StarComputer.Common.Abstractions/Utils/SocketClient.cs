@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -13,15 +14,13 @@ namespace StarComputer.Common.Abstractions.Utils
 		private static readonly EventId BinaryWroteID = new(93, "BinaryWriten");
 		private static readonly EventId BinaryRecivedID = new(94, "BinaryRecived");
 		private static readonly EventId ClientClosedDirectryID = new(95, "ClientClosedDirectry");
-		private const int BytesChunkSize = 512;
 
 
 		private readonly TcpClient client;
 		private readonly ILogger logger;
 		private readonly string name;
 		private readonly NetworkStream stream;
-		private readonly StreamWriter writer;
-		private readonly StreamReader reader;
+		private readonly List<byte> cacheList = new(200);
 
 
 		public SocketClient(TcpClient client, ILogger logger, string name = "#")
@@ -33,13 +32,6 @@ namespace StarComputer.Common.Abstractions.Utils
 			stream.ReadTimeout = StaticInformation.ClientMessageSendTimeout;
 			stream.WriteTimeout = StaticInformation.ClientMessageSendTimeout;
 
-			writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true, NewLine = "\n" };
-			reader = new StreamReader(stream, Encoding.UTF8);
-
-			//Read UTF-8 BOM bytes
-			Span<byte> nup = stackalloc byte[3];
-			stream.Read(nup);
-
 			EndPoint = (IPEndPoint)(client.Client.RemoteEndPoint ?? throw new NullReferenceException("Remote endpoint was null"));
 
 			logger.Log(LogLevel.Debug, ClientCreatedID, "(SocketClient {Name}) New socket client created, endpoint {EndPoint}", name, EndPoint);
@@ -47,6 +39,8 @@ namespace StarComputer.Common.Abstractions.Utils
 
 
 		public bool IsDataAvailable => stream.DataAvailable;
+
+		public int Available => stream.Socket.Available;
 
 		public bool IsConnected
 		{ 
@@ -71,30 +65,41 @@ namespace StarComputer.Common.Abstractions.Utils
 		{
 			var data = SerializationContext.Instance.Serialize(value);
 
-			writer.WriteLine(data);
+			stream.Write(Encoding.UTF8.GetBytes(data + '\n'));
 
 			logger.Log(LogLevel.Trace, ObjectWroteID, "(SocketClient {Name}) New object wrote\n\t{Data}", name, data);
 		}
 		
 		public void WriteObject(string serializedObject)
 		{
-			writer.WriteLine(serializedObject);
+			stream.Write(Encoding.UTF8.GetBytes(serializedObject + '\n'));
 
 			logger.Log(LogLevel.Trace, ObjectWroteID, "(SocketClient {Name}) New object wrote\n\t{Data}", name, serializedObject);
 		}
 
 		public TObject ReadObject<TObject>() where TObject : notnull
 		{
-			var data = reader.ReadLine() ?? throw new NullReferenceException();
-
-			logger.Log(LogLevel.Trace, ObjectRecivedID, "(SocketClient {Name}) New object recived\n\t{Data}", name, data);
+			var data = ReadObject();
 
 			return SerializationContext.Instance.Deserialize<TObject>(data);
 		}
 
 		public string ReadObject()
 		{
-			var data = reader.ReadLine() ?? throw new NullReferenceException();
+			cacheList.Clear();
+			Span<byte> buffer = stackalloc byte[1];
+
+			while (true)
+			{
+				stream.Read(buffer);
+				if (buffer[0] == '\n')
+					break;
+				else cacheList.Add(buffer[0]);
+			}
+
+			var array = cacheList.ToArray();
+			var data = Encoding.UTF8.GetString(array);
+			cacheList.Clear();
 
 			logger.Log(LogLevel.Trace, ObjectRecivedID, "(SocketClient {Name}) New object recived\n\t{Data}", name, data);
 
@@ -117,17 +122,13 @@ namespace StarComputer.Common.Abstractions.Utils
 
 		public ReadOnlyMemory<byte> ReadBytes(int count)
 		{
+			int timeout = 0;
+			while (client.Available < count && ++timeout < 100)
+				Thread.Sleep(1);
+
 			var buffer = new byte[count];
-			var span = buffer.AsSpan();
 
-			for (int offset = 0; offset < count - BytesChunkSize; offset += BytesChunkSize)
-			{
-				var writeTo = span[..BytesChunkSize];
-				stream.Read(writeTo);
-				span = span[BytesChunkSize..];
-			}
-
-			stream.Read(span);
+			stream.Read(buffer);
 
 			logger.Log(LogLevel.Trace, BinaryRecivedID, "(SocketClient {Name}) Binary data recived, bytes length - {Length}", name, count);
 
@@ -136,16 +137,7 @@ namespace StarComputer.Common.Abstractions.Utils
 
 		public void WriteBytes(ReadOnlySpan<byte> bytes)
 		{
-			var span = bytes;
-
-			for (int offset = 0; offset < bytes.Length - BytesChunkSize; offset += BytesChunkSize)
-			{
-				var writeFrom = span[..BytesChunkSize];
-				stream.Write(writeFrom);
-				span = span[BytesChunkSize..];
-			}
-
-			stream.Write(span);
+			stream.Write(bytes);
 
 			logger.Log(LogLevel.Trace, BinaryWroteID, "(SocketClient {Name}) Binary data wrote, bytes length - {Length}", name, bytes.Length);
 		}

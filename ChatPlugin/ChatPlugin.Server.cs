@@ -2,9 +2,11 @@
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Persistence;
 using StarComputer.Common.Abstractions.Plugins.Protocol;
+using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using StarComputer.PluginDevelopmentKit;
 using StarComputer.Server.Abstractions;
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace ChatPlugin
@@ -12,6 +14,8 @@ namespace ChatPlugin
 	public partial class ChatPlugin : PluginBase
 	{
 		private const string MessagesPersistenceAddress = "messages/";
+		private const string FilesPersistenceAddress = "files/";
+		private const string FilesMetadataFileName = ".filesmeta";
 		private const string BroadcastMessagesFileName = ".broadcast";
 		private const string MessagesFileExtension = ".data";
 		private static readonly PersistenceAddress BroadcastMessagesPersistenceAddress = new(MessagesPersistenceAddress + BroadcastMessagesFileName + MessagesFileExtension);
@@ -20,11 +24,11 @@ namespace ChatPlugin
 		private readonly ServerUIContext serverUI;
 
 
-		protected override void Initialize(IServerProtocolEnvironment serverProtocolEnvironment)
+		protected override async void Initialize(IServerProtocolEnvironment serverProtocolEnvironment)
 		{
 			var broadcast = persistence.ReadObject<MessageCollection>(BroadcastMessagesPersistenceAddress);
 
-			ui.LoadHTMLPage(new("server.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", broadcast.Select(s => new MessageUIDTO(s)), useJson: true));
+			await ui.LoadHTMLPageAsync(new("server.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", broadcast.Select(s => new MessageUIDTO(s)), useJson: true));
 			ui.SetJSPluginContext(serverUI);
 		}
 
@@ -52,6 +56,51 @@ namespace ChatPlugin
 			var client = AssociateUser(sender);
 
 			client.GetRequiredService<UserMessageStore>().AddMessage(messagePackage.Message);
+		}
+
+		[MessageProcessor]
+		[SuppressMessage("Style", "IDE0060"), SuppressMessage("CodeQuality", "IDE0051")]
+		private async ValueTask ProcessClientFileUpload(IServerProtocolEnvironment environment, PluginProtocolMessage message, MessageContext messageContext, UploadFileRequest uploadRequest)
+		{
+			if (message.Attachments?.TryGetValue(uploadRequest.AttachmentName, out var file) ?? false)
+			{
+				using var memory = new MemoryStream(file.Length);
+				await file.CopyDelegate(memory);
+				var buffer = memory.GetBuffer();
+				var uuid = await SaveFileAsync(uploadRequest.FullFileName, buffer);
+
+				await messageContext.Agent.SendMessageAsync(new(new UploadFileResponce(uuid.ToString())));
+			}
+
+			throw new ArgumentException("No attachment with name " + uploadRequest.AttachmentName);
+		}
+
+		[MessageProcessor]
+		[SuppressMessage("Style", "IDE0060"), SuppressMessage("CodeQuality", "IDE0051")]
+		private async ValueTask ProcessClientFileLoad(IServerProtocolEnvironment environment, PluginProtocolMessage message, MessageContext messageContext, LoadFileRequest loadRequest)
+		{
+			if (Guid.TryParse(loadRequest.UUID, out var guid))
+			{		
+				using var files = persistence.GetObject<FileMetaCollection>(new PersistenceAddress(FilesPersistenceAddress + FilesMetadataFileName));
+
+				var fileMeta = files.Object[guid];
+				fileMeta.Use();
+
+				var responce = new LoadFileResponce(fileMeta.FileName, fileMeta.Extension);
+
+				if (loadRequest.TargetAttachmentName is null)
+				{
+					await messageContext.Agent.SendMessageAsync(new(responce));
+				}
+				else
+				{
+					var rawData = await persistence.LoadRawDataAsync(new PersistenceAddress(FilesPersistenceAddress + guid.ToString()));
+					var attachment = new PluginProtocolMessage.Attachment(loadRequest.TargetAttachmentName, (stream) => stream.WriteAsync(rawData), rawData.Length);
+					await messageContext.Agent.SendMessageAsync(new(responce, new[] { attachment }));
+				}
+			}
+
+			throw new ArgumentException("No file with UUID " + loadRequest.UUID);
 		}
 
 		private IEnumerable<Message> FormMessagesForClient(PluginUser client)
@@ -86,10 +135,41 @@ namespace ChatPlugin
 		{
 			using var broadcast = persistence.GetObject<MessageCollection>(BroadcastMessagesPersistenceAddress);
 			broadcast.Object.Add(message);
+
+			VisualizeServerMessage(message, null);
+		}
+
+		private async Task<Guid> SaveFileAsync(string fullFileName, ReadOnlyMemory<byte> data)
+		{
+			var uuid = Guid.NewGuid();
+			using var files = persistence.GetObject<FileMetaCollection>(new PersistenceAddress(FilesPersistenceAddress + FilesMetadataFileName));
+
+			var fileName = Path.GetFileNameWithoutExtension(fullFileName);
+			var extension = Path.GetExtension(fullFileName);
+			files.Object.Add(uuid, new(fileName, extension));
+
+			await persistence.SaveRawDataAsync(new PersistenceAddress(FilesPersistenceAddress + uuid.ToString()), data);
+
+			return uuid;
 		}
 
 
 		private class MessageCollection : List<Message> { }
+
+		private class FileMetaCollection : Dictionary<Guid, ServerSideFileMeta> { }
+
+		private record ServerSideFileMeta(string FileName, string Extension)
+		{
+			private const int OutdateTimeoutInDays = 5;
+
+
+			public DateTime LastUsage { get; private set; } = DateTime.Now;
+
+
+			public bool IsOutdated() => (DateTime.Now - LastUsage).TotalDays > OutdateTimeoutInDays;
+
+			public void Use() => LastUsage = DateTime.Now;
+		}
 
 		private class UserMessageStore
 		{
@@ -174,9 +254,43 @@ namespace ChatPlugin
 					owner.DispatchNewBroadcastMessage(message.Message);
 				}
 
-				owner.VisualizeServerMessage(message.Message, reciverUserName);
-
 				await Task.WhenAll(targets.Select(target => target.Agent.SendMessageAsync(new(message, null))));
+			}
+
+			public async Task<string> UploadFile(string fileName, int[] data, int realDataLength)
+			{
+				var bytesData = new byte[realDataLength];
+				Buffer.BlockCopy(data, 0, bytesData, 0, realDataLength);
+
+				return (await owner.SaveFileAsync(fileName, bytesData)).ToString();
+			}
+
+			public Task<FileMetaUIDTO> GetFileMeta(string uuid)
+			{
+				if (Guid.TryParse(uuid, out var guid))
+				{
+					using var files = owner.persistence.GetObject<FileMetaCollection>(new PersistenceAddress(FilesPersistenceAddress + FilesMetadataFileName));
+
+					if (files.Object.TryGetValue(guid, out var value))
+					{
+						value.Use();
+						return Task.FromResult(new FileMetaUIDTO(value.FileName, value.Extension));
+					}
+				}
+
+				throw new ArgumentException("No file with UUID " + uuid);
+			}
+
+			public async Task<string> LoadFile(string uuid)
+			{
+				var rawData = await owner.persistence.LoadRawDataAsync(new PersistenceAddress(FilesPersistenceAddress + uuid));
+
+				var resource = new PluginResource("file");
+
+				owner.ui.StopResourceShare(resource);
+				var address = owner.ui.ShareResource(resource, rawData, "application/octet-stream");
+
+				return address;
 			}
 		}
 	}

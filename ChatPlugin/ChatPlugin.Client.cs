@@ -7,6 +7,7 @@ using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using StarComputer.PluginDevelopmentKit;
 using StarComputer.Server.Abstractions;
 using System.Diagnostics.CodeAnalysis;
+using StarComputer.Common.Abstractions.Plugins.Persistence;
 
 namespace ChatPlugin
 {
@@ -22,13 +23,13 @@ namespace ChatPlugin
 				var responce = await SendMessageAndRequestResponse<ClientChatInitializationModel>(clientProtocolEnviroment.Client.GetServerAgent(), new ClientChatInitializationRequest());
 				var messages = responce.Body.Messages;
 
-				ui.LoadHTMLPage(new PluginResource("client.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", messages.Select(s => new MessageUIDTO(s)), useJson: true));
+				await ui.LoadHTMLPageAsync(new PluginResource("client.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", messages.Select(s => new MessageUIDTO(s)), useJson: true));
 				ui.SetJSPluginContext(clientUI);
 			};
 
-			clientProtocolEnviroment.Client.ClientDisconnected += () =>
+			clientProtocolEnviroment.Client.ClientDisconnected += async () =>
 			{
-				ui.LoadEmptyPage();
+				await ui.LoadEmptyPageAsync();
 			};
 		}
 
@@ -68,6 +69,42 @@ namespace ChatPlugin
 				owner.VisualizeClientMessage(message.Message);
 
 				await ClientEnvironment.Client.GetServerAgent().SendMessageAsync(new(message));
+			}
+
+			public async Task<string> UploadFile(string fileName, int[] data, int realDataLength)
+			{
+				var bytesData = new byte[realDataLength];
+				Buffer.BlockCopy(data, 0, bytesData, 0, realDataLength);
+
+				var message = new PluginProtocolMessage(new UploadFileRequest(fileName, "file"), new[] { new PluginProtocolMessage.Attachment("file", (stream) => stream.WriteAsync(bytesData), realDataLength) });
+				var responce = await owner.SendMessageAndRequestResponse<UploadFileResponce>(owner.ClientOnly().Client.GetServerAgent(), message);
+				return responce.Body.UUID;
+			}
+
+			public async Task<FileMetaUIDTO> GetFileMeta(string uuid)
+			{
+				var message = new PluginProtocolMessage(new LoadFileRequest(uuid));
+				var responce = await owner.SendMessageAndRequestResponse<LoadFileResponce>(owner.ClientOnly().Client.GetServerAgent(), message);
+				return new FileMetaUIDTO(responce.Body.FileName, responce.Body.Extension);
+			}
+
+			public async Task<string> LoadFile(string uuid)
+			{
+				var message = new PluginProtocolMessage(new LoadFileRequest(uuid, "file"));
+				var responce = await owner.SendMessageAndRequestResponse<LoadFileResponce>(owner.ClientOnly().Client.GetServerAgent(), message);
+
+				var attachment = responce.Message.Attachments?["file"] ?? throw new NullReferenceException();
+
+				using var memory = new MemoryStream(attachment.Length);
+				await attachment.CopyDelegate(memory);
+				var rawData = memory.GetBuffer();
+
+				var resource = new PluginResource("file");
+
+				owner.ui.StopResourceShare(resource);
+				var address = owner.ui.ShareResource(resource, rawData, "application/octet-stream");
+
+				return address;
 			}
 		}
 	}

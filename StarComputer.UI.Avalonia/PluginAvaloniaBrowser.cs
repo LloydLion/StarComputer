@@ -58,28 +58,21 @@ namespace StarComputer.UI.Avalonia
 			decorator.Child = browser;
 		}
 
-		public void Navigate(string? url, bool forceReload = false)
+		public async Task NavigateAsync(string? url, bool forceReload = false)
 		{
 			if (browser.Address != url || forceReload)
 			{
-				if (Dispatcher.UIThread.CheckAccess())
+				var loadEvent = new TaskCompletionSource();
+				browser.LoadEnd += handle;
+				browser.Address = url;
+				await loadEvent.Task;
+				browser.LoadEnd -= handle;
+
+
+
+				void handle(object sender, LoadEndEventArgs args)
 				{
-					browser.Address = url;
-				}
-				else
-				{
-					var loadEvent = new AutoResetEvent(false);
-					browser.LoadEnd += handle;
-					browser.Address = url;
-					loadEvent.WaitOne();
-					browser.LoadEnd -= handle;
-
-
-
-					void handle(object sender, LoadEndEventArgs args)
-					{
-						loadEvent.Set();
-					}
+					loadEvent.SetResult();
 				}
 			}
 		}

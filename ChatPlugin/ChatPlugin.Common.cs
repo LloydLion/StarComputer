@@ -23,7 +23,7 @@ namespace ChatPlugin
 
 		private abstract class CommonUIContext
 		{
-		
+			public record FileMetaUIDTO(string FileName, string Extension);
 		}
 
 		[MessageBody("chatInitRequest")]
@@ -52,6 +52,64 @@ namespace ChatPlugin
 				Message = message;
 			}
 		}
+
+		[MessageBody("uploadFileRequest")]
+		private class UploadFileRequest
+		{
+			public string FullFileName { get; }
+
+			public string AttachmentName { get; }
+
+
+			public UploadFileRequest(string fullFileName, string attachmentName)
+			{
+				FullFileName = fullFileName;
+				AttachmentName = attachmentName;
+			}
+		}
+
+		[MessageBody("uploadFileResponce")]
+		private class UploadFileResponce
+		{
+			public string UUID { get; }
+
+
+			public UploadFileResponce(string uuid)
+			{
+				UUID = uuid;
+			}
+		}
+
+		[MessageBody("loadFileRequest")]
+		private class LoadFileRequest
+		{
+			public string UUID { get; }
+
+			public string? TargetAttachmentName { get; }
+
+
+			public LoadFileRequest(string uuid, string? targetAttachmentName = null)
+			{
+				UUID = uuid;
+				TargetAttachmentName = targetAttachmentName;
+			}
+		}
+
+		[MessageBody("loadFileResponce")]
+		private class LoadFileResponce
+		{
+			public string FileName { get; }
+
+			public string Extension { get; }
+
+
+			public LoadFileResponce(string fileName, string extension)
+			{
+				FileName = fileName;
+				Extension = extension;
+			}
+		}
+
 
 		private record Message(string Author, string Content, Message.ContentType Type, DateTime TimeSpamp)
 		{

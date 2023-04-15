@@ -11,7 +11,7 @@
 		<br/>
 		<input type="input" id="textBox"/>
 		<button onClick="sendMessage()">Send message</button>
-		<button onClick="alert('Not implemented')">Upload</button>
+		<button onClick="uploadFile()">Upload</button>
 
 		<script type="text/javascript">
 			const initialMessages = {{InitialMessages}};
@@ -31,8 +31,15 @@
 				}
 				else if (message.Type == "File")
 				{
+					var fileUUID = message.Content;
 					var downloadBtn = document.createElement("button");
-					button.append(message.Content);
+					downloadBtn.append(fileUUID);
+					downloadBtn.addEventListener("click", async () =>
+					{
+						await loadFile(fileUUID);
+					});
+
+					div.append(downloadBtn);
 				}
 				else
 				{
@@ -50,6 +57,44 @@
 				const textbox = document.getElementById("textBox");
 				await context.sendMessage(textbox.value, "Text");
 				textbox.value = "";
+			}
+
+			async function loadFile(fileUUID)
+			{
+				var url = await context.loadFile(fileUUID);
+
+				var link = document.createElement("a");
+				link.setAttribute('download', "file");
+				link.href = url;
+
+				link.click();
+			}
+
+			async function uploadFile()
+			{
+				var input = document.createElement("input");
+				input.type = "file";
+
+				input.onchange = e =>
+				{
+					var file = e.target.files[0];
+					var reader = new FileReader();
+
+					reader.onload = async re =>
+					{
+						var result = re.target.result;
+
+						var ceiledBuffer = new ArrayBuffer(Math.ceil(result.byteLength / 4) * 4);
+						new Uint8Array(ceiledBuffer).set(new Uint8Array(result));
+
+						var uuid = await context.uploadFile(file.name, Array.from(new Int32Array(ceiledBuffer)), result.byteLength);
+						await context.sendMessage(uuid, "File");
+					};
+
+					reader.readAsArrayBuffer(file);
+				};
+
+				input.click();
 			}
 		</script>
 	</body>

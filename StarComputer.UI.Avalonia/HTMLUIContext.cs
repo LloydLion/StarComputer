@@ -37,23 +37,23 @@ namespace StarComputer.UI.Avalonia
 		public void Initialize()
 		{
 			server.Start();
-			LoadEmptyPage();
+			LoadEmptyPageAsync().AsTask().Equals(null);
 		}
 
-		public HTMLPageLoadResult LoadEmptyPage()
+		public async ValueTask<HTMLPageLoadResult> LoadEmptyPageAsync()
 		{
-			browser.Navigate("gugpage.html", forceReload: true);
+			await browser.NavigateAsync("gugpage.html", forceReload: true);
 
 			return new();
 		}
 
-		public HTMLPageLoadResult LoadHTMLPage(PluginResource resource, PageConstructionBag constructionBag)
+		public async ValueTask<HTMLPageLoadResult> LoadHTMLPageAsync(PluginResource resource, PageConstructionBag constructionBag)
 		{
 			string document;
 			if (pageConstructor is null)
 			{
 				using var reader = new StreamReader(resources.ReadResource(resource));
-				var documentBuilder = new StringBuilder(reader.ReadToEnd());
+				var documentBuilder = new StringBuilder(await reader.ReadToEndAsync());
 
 				foreach (var argument in constructionBag.ConstructionArguments)
 					documentBuilder.Replace($"{{{{{argument.Key}}}}}", argument.Value);
@@ -66,7 +66,7 @@ namespace StarComputer.UI.Avalonia
 
 			var address = server.HttpPrefix + "index.html";
 
-			browser.Navigate(address, forceReload: true);
+			await browser.NavigateAsync(address, forceReload: true);
 
 			return new();
 		}
@@ -96,9 +96,10 @@ namespace StarComputer.UI.Avalonia
 			uiPostInitHandler?.Invoke(this, EventArgs.Empty);
 		}
 
-		public void ShareResource(PluginResource resource, ReadOnlyMemory<byte> fileData, string contentType, string? charset = null)
+		public string ShareResource(PluginResource resource, ReadOnlyMemory<byte> fileData, string contentType, string? charset = null)
 		{
 			server.ReplaceFile(resource, fileData, contentType, charset);
+			return server.HttpPrefix + resource.FullPath;
 		}
 
 		public void StopResourceShare(PluginResource resource)

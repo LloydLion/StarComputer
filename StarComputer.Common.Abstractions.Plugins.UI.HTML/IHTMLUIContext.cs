@@ -4,9 +4,9 @@ namespace StarComputer.Common.Abstractions.Plugins.UI.HTML
 {
 	public interface IHTMLUIContext : IUIContext
 	{
-		public HTMLPageLoadResult LoadEmptyPage();
+		public ValueTask<HTMLPageLoadResult> LoadEmptyPageAsync();
 
-		public HTMLPageLoadResult LoadHTMLPage(PluginResource resource, PageConstructionBag constructionBag);
+		public ValueTask<HTMLPageLoadResult> LoadHTMLPageAsync(PluginResource resource, PageConstructionBag constructionBag);
 
 		public dynamic? ExecuteJavaScriptFunction(string functionName, params object?[] arguments);
 
@@ -16,7 +16,7 @@ namespace StarComputer.Common.Abstractions.Plugins.UI.HTML
 
 		public void OnUIPostInitialized(EventHandler handler);
 
-		public void ShareResource(PluginResource resource, ReadOnlyMemory<byte> fileData, string contentType, string? charset = null);
+		public string ShareResource(PluginResource resource, ReadOnlyMemory<byte> fileData, string contentType, string? charset = null);
 
 		public void StopResourceShare(PluginResource resource);
 	}
