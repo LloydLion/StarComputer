@@ -12,7 +12,12 @@ namespace StarComputer.PluginDevelopmentKit
 {
 	public abstract class PluginBase : IPlugin
 	{
+	#if DEBUG
+		public const int DefaultResponceTimeout = 300000;
+	#else
 		public const int DefaultResponceTimeout = 10000;
+	#endif
+
 		public const string ClientUserNamePrefix = "@";
 		public const string ServerUserName = "Master";
 
@@ -146,7 +151,8 @@ namespace StarComputer.PluginDevelopmentKit
 
 			if (responseWaitRequestLine.TryGetValue(bodyType, out var rwr))
 			{
-				rwr.SetResult(message);
+				responseWaitRequestLine.TryRemove(new(bodyType, rwr));
+				await rwr.SetResultAsync(message);
 				return;
 			}
 
@@ -166,23 +172,24 @@ namespace StarComputer.PluginDevelopmentKit
 			}
 		}
 
-		protected async Task<TypedPluginProtocolMessage<TBody>> SendMessageAndRequestResponse<TBody>(IPluginRemoteAgent agent, PluginProtocolMessage message) where TBody : class
+		protected async Task<TypedPluginProtocolMessage<TBody>> SendMessageAndRequestResponse<TBody>(IPluginRemoteAgent agent, PluginProtocolMessage message, bool isWaitsAttachment = false) where TBody : class
 		{
+			var task = RequestResponse<TBody>(isWaitsAttachment);
 			await agent.SendMessageAsync(message);
-			return await RequestResponse<TBody>();
+			return await task;
 		}
 
-		protected Task<TypedPluginProtocolMessage<TBody>> SendMessageAndRequestResponse<TBody>(IPluginRemoteAgent agent, object messageBody) where TBody : class =>
-			SendMessageAndRequestResponse<TBody>(agent, new PluginProtocolMessage(messageBody));
+		protected Task<TypedPluginProtocolMessage<TBody>> SendMessageAndRequestResponse<TBody>(IPluginRemoteAgent agent, object messageBody, bool isWaitsAttachment = false) where TBody : class =>
+			SendMessageAndRequestResponse<TBody>(agent, new PluginProtocolMessage(messageBody), isWaitsAttachment);
 
-		protected async Task<TypedPluginProtocolMessage<TBody>> RequestResponse<TBody>(TimeSpan? timeout = null) where TBody : class
+		protected async Task<TypedPluginProtocolMessage<TBody>> RequestResponse<TBody>(bool isWaitsAttachment, TimeSpan? timeout = null) where TBody : class
 		{
 			timeout ??= TimeSpan.FromMilliseconds(DefaultResponceTimeout);
 			var btimeout = timeout.Value;
 
 			var tcs = new TaskCompletionSource<TypedPluginProtocolMessage<TBody>>();
 			var expireDate = DateTime.UtcNow + btimeout;
-			var request = new ResponseWaitRequest(typeof(TBody), (msg) => tcs.SetResult(TypedPluginProtocolMessage<TBody>.CreateFrom(msg)), expireDate);
+			var request = new ResponseWaitRequest(typeof(TBody), (msg) => tcs.SetResult(TypedPluginProtocolMessage<TBody>.CreateFrom(msg)), expireDate, isWaitsAttachment);
 
 			var timeoutTask = Task.Delay(btimeout);
 
@@ -299,13 +306,22 @@ namespace StarComputer.PluginDevelopmentKit
 		}
 
 
-		private record ResponseWaitRequest(Type WaitingBodyType, Action<PluginProtocolMessage> SetResultDelegate, DateTime ExpireDate)
+		private record ResponseWaitRequest(Type WaitingBodyType, Action<PluginProtocolMessage> SetResultDelegate, DateTime ExpireDate, bool IsWaitsAttachment)
 		{
-			public void SetResult(PluginProtocolMessage message)
+			public async ValueTask SetResultAsync(PluginProtocolMessage message)
 			{
-				var bodyType = message.Body?.GetType();
+				var bodyType = message.Body.GetType();
 				if (bodyType is not null && bodyType.IsAssignableTo(WaitingBodyType) == false)
 					throw new InvalidOperationException($"Request waiting instance of {WaitingBodyType.FullName} or inheritor. Given type is {bodyType.FullName}");
+
+				if (IsWaitsAttachment && message.Attachment is not null)
+				{
+					var memory = new MemoryStream(message.Attachment.Length);
+					await message.Attachment.CopyDelegate(memory);
+					memory.Position = 0;
+					var attachment = new PluginProtocolMessage.MessageAttachment(message.Attachment.Name, (stream) => new(memory.CopyToAsync(stream)), message.Attachment.Length);
+					message = new PluginProtocolMessage(message.Body, attachment);
+				}
 
 				SetResultDelegate(message);
 			}
@@ -315,7 +331,7 @@ namespace StarComputer.PluginDevelopmentKit
 		{
 			public static TypedPluginProtocolMessage<TBody> CreateFrom(PluginProtocolMessage message)
 			{
-				return new TypedPluginProtocolMessage<TBody>(message, (TBody)(message.Body ?? throw new NullReferenceException()));
+				return new TypedPluginProtocolMessage<TBody>(message, (TBody)message.Body);
 			}
 		}
 

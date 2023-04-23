@@ -30,6 +30,7 @@ namespace ChatPlugin
 
 			await ui.LoadHTMLPageAsync(new("server.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", broadcast.Select(s => new MessageUIDTO(s)), useJson: true));
 			ui.SetJSPluginContext(serverUI);
+			ui.ExecuteJavaScriptFunction("initialize");
 		}
 
 
@@ -62,17 +63,13 @@ namespace ChatPlugin
 		[SuppressMessage("Style", "IDE0060"), SuppressMessage("CodeQuality", "IDE0051")]
 		private async ValueTask ProcessClientFileUpload(IServerProtocolEnvironment environment, PluginProtocolMessage message, MessageContext messageContext, UploadFileRequest uploadRequest)
 		{
-			if (message.Attachments?.TryGetValue(uploadRequest.AttachmentName, out var file) ?? false)
-			{
-				using var memory = new MemoryStream(file.Length);
-				await file.CopyDelegate(memory);
-				var buffer = memory.GetBuffer();
-				var uuid = await SaveFileAsync(uploadRequest.FullFileName, buffer);
+			var file = message.Attachment ?? throw new NullReferenceException();
+			using var memory = new MemoryStream(file.Length);
+			await file.CopyDelegate(memory);
+			var buffer = memory.GetBuffer();
+			var uuid = await SaveFileAsync(uploadRequest.FullFileName, buffer);
 
-				await messageContext.Agent.SendMessageAsync(new(new UploadFileResponce(uuid.ToString())));
-			}
-
-			throw new ArgumentException("No attachment with name " + uploadRequest.AttachmentName);
+			await messageContext.Agent.SendMessageAsync(new(new UploadFileResponce(uuid.ToString())));
 		}
 
 		[MessageProcessor]
@@ -88,19 +85,18 @@ namespace ChatPlugin
 
 				var responce = new LoadFileResponce(fileMeta.FileName, fileMeta.Extension);
 
-				if (loadRequest.TargetAttachmentName is null)
+				if (loadRequest.NeedAddFileContent == false)
 				{
 					await messageContext.Agent.SendMessageAsync(new(responce));
 				}
 				else
 				{
 					var rawData = await persistence.LoadRawDataAsync(new PersistenceAddress(FilesPersistenceAddress + guid.ToString()));
-					var attachment = new PluginProtocolMessage.Attachment(loadRequest.TargetAttachmentName, (stream) => stream.WriteAsync(rawData), rawData.Length);
-					await messageContext.Agent.SendMessageAsync(new(responce, new[] { attachment }));
+					var attachment = new PluginProtocolMessage.MessageAttachment("fileContent", (stream) => stream.WriteAsync(rawData), rawData.Length);
+					await messageContext.Agent.SendMessageAsync(new(responce, attachment));
 				}
 			}
-
-			throw new ArgumentException("No file with UUID " + loadRequest.UUID);
+			else throw new ArgumentException("No file with UUID " + loadRequest.UUID);
 		}
 
 		private IEnumerable<Message> FormMessagesForClient(PluginUser client)
@@ -108,7 +104,7 @@ namespace ChatPlugin
 			var store = client.GetRequiredService<UserMessageStore>();
 
 			var broadcast = persistence.ReadObject<MessageCollection>(BroadcastMessagesPersistenceAddress);
-			return store.ListMessages().Concat(broadcast);
+			return store.ListMessages().Concat(broadcast).OrderBy(s => s.TimeSpamp);
 		}
 
 		private void InitializeUser(PluginUser client)

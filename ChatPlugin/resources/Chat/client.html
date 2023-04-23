@@ -15,9 +15,13 @@
 
 		<script type="text/javascript">
 			const initialMessages = {{InitialMessages}};
-			for (var i = 0; i < initialMessages.length; i++)
+
+			async function initialize()
 			{
-				visualizeMessageCS(initialMessages[i]);
+				for (var i = 0; i < initialMessages.length; i++)
+				{
+					await visualizeMessageCS(initialMessages[i]);
+				}
 			}
 
 			async function visualizeMessageCS(message)
@@ -32,12 +36,16 @@
 				else if (message.Type == "File")
 				{
 					var fileUUID = message.Content;
+
+					var meta = await context.getFileMeta(fileUUID);
+					var fullFileName = meta.FileName + meta.Extension
+
 					var downloadBtn = document.createElement("button");
-					downloadBtn.append(fileUUID);
-					downloadBtn.addEventListener("click", async () =>
+					downloadBtn.append(meta.FileName + " [" + meta.Extension + "]");
+					downloadBtn.addEventListener("click", ((uuid, fileName) => async () =>
 					{
-						await loadFile(fileUUID);
-					});
+						await loadFile(uuid, fileName);
+					})(fileUUID, fullFileName));
 
 					div.append(downloadBtn);
 				}
@@ -59,12 +67,12 @@
 				textbox.value = "";
 			}
 
-			async function loadFile(fileUUID)
+			async function loadFile(fileUUID, fullFileName)
 			{
 				var url = await context.loadFile(fileUUID);
 
 				var link = document.createElement("a");
-				link.setAttribute('download', "file");
+				link.setAttribute('download', fullFileName);
 				link.href = url;
 
 				link.click();

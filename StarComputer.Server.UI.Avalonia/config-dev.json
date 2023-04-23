@@ -1,8 +1,7 @@
 ﻿{
 	"Server":
 	{
-		"Interface": "127.0.0.1",
-		"Password" : "DEBUG PASSWORD"
+
 	},
 
 	"Logging":

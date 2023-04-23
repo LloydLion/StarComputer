@@ -5,14 +5,12 @@ namespace StarComputer.Common.Abstractions.Protocol
 {
 	public interface IRemoteProtocolAgent
 	{
-		public IPEndPoint CurrentEndPoint { get; }
-
 		public Guid UniqueAgentId { get; }
+
+		public bool IsAlive { get; }
 
 
 		public void Disconnect();
-
-		public void Reconnect(TcpClient newClient);
 
 		public Task SendMessageAsync(ProtocolMessage message);
 

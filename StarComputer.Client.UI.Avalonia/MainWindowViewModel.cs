@@ -30,7 +30,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 		public void Close()
 		{
-			client.Close();
+			client.CloseAsync();
 		}
 	}
 }

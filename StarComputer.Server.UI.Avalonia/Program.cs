@@ -21,10 +21,11 @@ using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Plugins.Resources;
 using StarComputer.UI.Avalonia;
 using StarComputer.Server.Abstractions;
-using StarComputer.Server.DebugEnv;
 using System.Threading.Tasks;
 using StarComputer.Common.Plugins.Persistence;
 using StarComputer.Common.Abstractions.Plugins.Persistence;
+using StarComputer.Common.Abstractions;
+using System.Net;
 
 namespace StarComputer.Server.UI.Avalonia
 {
@@ -50,7 +51,16 @@ namespace StarComputer.Server.UI.Avalonia
 			};
 
 			var services = new ServiceCollection()
-				.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
+				.Configure<ServerConfiguration>(s =>
+				{
+					var configSection = config.GetSection("Server");
+					var password = configSection.GetValue<string>("ServerPassword");
+					if (password is not null) s.ServerPassword = password;
+					s.ServerHttpAddressTemplate = configSection.GetValue<string>("ServerHttpAddressTemplate") ?? StaticInformation.ServerHttpAddressTemplate;
+					var connectionInterface = configSection.GetValue<string>("Interface");
+					if (connectionInterface is not null) s.Interface = IPEndPoint.Parse(connectionInterface);
+
+				})
 				.Configure<FileResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 				.Configure<ReflectionPluginLoader.Options>(s =>
 				{
@@ -62,7 +72,6 @@ namespace StarComputer.Server.UI.Avalonia
 				.AddSingleton<IServer, Server>()
 
 				.AddTransient<IMessageHandler, PluginOrientedMessageHandler>()
-				.AddTransient<IClientApprovalAgent, GugApprovalAgent>()
 				.AddSingleton<IResourcesCatalog, FileResourcesCatalog>()
 				.AddSingleton<IPluginPersistenceServiceProvider, FileBasedPluginPersistenceServiceProvider>()
 

@@ -27,8 +27,8 @@ namespace StarComputer.Common.Plugins.Protocol
 
 		public Task SendMessageAsync(PluginProtocolMessage message)
 		{
-			var protocolMessage = new ProtocolMessage(targetPluginDomain, message.Body,
-				message.Attachments?.Select(s => new ProtocolMessage.Attachment(s.Value.Name, s.Value.CopyDelegate, s.Value.Length)), null);
+			var protocolMessage = new ProtocolMessage(targetPluginDomain, message.Body, message.Attachment is null ? null :
+				new ProtocolMessage.MessageAttachment(message.Attachment.Name, message.Attachment.CopyDelegate, message.Attachment.Length), null);
 
 			return agent.SendMessageAsync(protocolMessage);
 		}

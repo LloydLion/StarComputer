@@ -1,16 +1,15 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Newtonsoft.Json.Linq;
-using StarComputer.Common.Abstractions;
-using StarComputer.Common.Abstractions.Connection;
-using StarComputer.Common.Abstractions.Protocol;
-using StarComputer.Common.Protocol;
-using StarComputer.Common.Abstractions.Utils;
+﻿using Microsoft.Extensions.Options;
 using StarComputer.Server.Abstractions;
-using System.Net.Sockets;
-using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Abstractions.Plugins;
+using System.Net;
+using StarComputer.Common.Abstractions.Threading;
+using Microsoft.Extensions.Logging;
+using System.Text;
+using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
+using static StarComputer.Common.Protocol.HttpProtocolHelper;
+using StarComputer.Common.Protocol;
+using StarComputer.Common.Abstractions.Connection;
 
 namespace StarComputer.Server
 {
@@ -36,50 +35,43 @@ namespace StarComputer.Server
 		private static readonly EventId ProtocolErrorID = new(25, "ProtocolError");
 
 
-		private readonly TcpListener connectionListener;
-		private readonly ServerConfiguration options;
-		private readonly ILogger<Server> logger;
-		private readonly IClientApprovalAgent clientApprovalAgent;
-		private readonly PortRentManager portRent;
-		private readonly IBodyTypeResolver bodyTypeResolver;
-
-		private readonly Dictionary<Guid, ServerSideClientInternal> agents = new();
-		private readonly IMessageHandler messageHandler;
-		private readonly AgentWorker agentWorker;
-
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
+		private readonly ILogger<Server> logger;
+		private readonly IMessageHandler messageHandler;
+		private readonly IBodyTypeResolver bodyTypeResolver;
+		private readonly ServerConfiguration options;
+		private readonly HttpListener listener;
 
-		private readonly AutoResetEvent onServerClosed = new(false);
+		private readonly AutoResetEvent closeRequestEvent = new(false);
+		private readonly TaskCompletionSource closeRequestCoevent = new(false);
+		private readonly AutoResetEvent listenRequestEvent = new(false);
+		private ListenRequest? listenRequest;
 
-		private readonly AutoResetEvent onListeningEvent = new(false);
-		private TaskCompletionSource? listeningTaskTCS = null;
-		private bool isListening;
+		private readonly Dictionary<Guid, ServerSideClientInternal> clients = new();
 
 
 		public Server(
 			IOptions<ServerConfiguration> options,
-			ILogger<Server> logger,
-			IClientApprovalAgent clientApprovalAgent,
-			IMessageHandler messageHandler,
 			IThreadDispatcher<Action> mainThreadDispatcher,
-			IBodyTypeResolver bodyTypeResolver)
+			ILogger<Server> logger,
+			IMessageHandler messageHandler,
+			IBodyTypeResolver bodyTypeResolver
+		)
 		{
 			options.Value.Validate();
-
 			this.options = options.Value;
-			connectionListener = new TcpListener(options.Value.Interface, options.Value.ConnectionPort);
-			this.logger = logger;
-			this.clientApprovalAgent = clientApprovalAgent;
-			this.messageHandler = messageHandler;
-			portRent = new(options.Value.OperationsPortRange);
-			agentWorker = new(this);
+
+			listener = new();
+			listener.Prefixes.Add(options.Value.ConstructServerHttpAddress());
 
 			this.mainThreadDispatcher = mainThreadDispatcher;
+			this.logger = logger;
+			this.messageHandler = messageHandler;
 			this.bodyTypeResolver = bodyTypeResolver;
 		}
 
 
-		public bool IsListening { get => isListening; private set { isListening = value; ListeningStatusChanged?.Invoke(); } }
+		public bool IsListening { get; private set; }
 
 
 		public event Action? ListeningStatusChanged;
@@ -89,103 +81,100 @@ namespace StarComputer.Server
 		public event Action<ServerSideClient>? ClientDisconnected;
 
 
+		public void Close()
+		{
+			if (IsListening == false)
+				throw new InvalidOperationException("Server is already closed, enable to close server twice");
+
+			closeRequestEvent.Set();
+			closeRequestCoevent.Task.Wait();
+		}
+
+		public ServerSideClient GetClientByAgent(Guid protocolAgentId)
+		{
+			var ssci = clients[protocolAgentId];
+			return new ServerSideClient(ssci.ConnectionInformation, ssci.Agent);
+		}
+
+		public IEnumerable<ServerSideClient> ListClients()
+		{
+			foreach (var ssci in clients.Values)
+				yield return new ServerSideClient(ssci.ConnectionInformation, ssci.Agent);
+		}
+
 		public ValueTask ListenAsync()
 		{
-			listeningTaskTCS = new();
-			onListeningEvent.Set();
+			if (IsListening == true)
+				throw new InvalidOperationException("Server is already listening, enable to open server twice");
 
-			return new(listeningTaskTCS.Task);
+			var tcs = new TaskCompletionSource();
+			listenRequest = new(tcs);
+			listenRequestEvent.Set();
+			return new ValueTask(tcs.Task);
 		}
 
 		public void MainLoop(IPluginStore plugins)
 		{
 		restart:
-			onListeningEvent.WaitOne();
+			listenRequestEvent.WaitOne();
+			if (listenRequest is null) goto restart;
 			try
 			{
-				connectionListener.Start(options.MaxPendingConnectionQueue);
-				listeningTaskTCS?.SetResult();
-				IsListening = true;
+				listener.Start();
 			}
 			catch (Exception ex)
 			{
-				listeningTaskTCS?.SetException(ex);
-				IsListening = false;
+				listenRequest.Task.SetException(ex);
 				goto restart;
 			}
 
-			var waitForClient = new AutoResetEvent(false);
-			createClientTask(waitForClient, out var clientTask, out var clientTaskCancel);
+			IsListening = true;
+			ListeningStatusChanged?.Invoke();
 
-			logger.Log(LogLevel.Information, ServerReadyID, "Server is ready and listen on {IP}:{Port}", options.Interface, options.ConnectionPort);
+			var httpContextAsyncResult = listener.BeginGetContext(null, null);
 
-			Span<WaitHandle> alsoWait = new WaitHandle[2];
-			alsoWait[0] = waitForClient;
-			alsoWait[1] = onServerClosed;
+			var handlers = new WaitHandle[] { closeRequestEvent, httpContextAsyncResult.AsyncWaitHandle };
 
-			while (true)
+			while (IsListening)
 			{
-				logger.Log(LogLevel.Trace, WaitingNewTasksID, "Server is waiting new tasks or client connection");
+				var waitResult = mainThreadDispatcher.WaitHandles(handlers);
 
-				var index = mainThreadDispatcher.WaitHandles(alsoWait);
+				CheckClientsTimeout();
 
-				if (index == ThreadDispatcherStatic.ClosedIndex)
+				if (waitResult == ThreadDispatcherStatic.ClosedIndex)
 				{
-					throw new InvalidOperationException("Dispatcher is closed, by external command. Terminating server");
-				}
-				else if (index == 1)
-				{
-					logger.Log(LogLevel.Information, CloseSignalRecivedID, "Server has recived close signal, closing");
-
-					IsListening = false;
-
-					clientTaskCancel.Cancel();
-					try { clientTask.Wait(); } catch (Exception) { }
-					connectionListener.Stop();
-
-					//TODO: Danger place, fix bug
-					foreach (var agent in agents)
-						agent.Value.ProtocolAgent.Disconnect();
-
-					return;
-				}
-				else if (index == 0)
-				{
-					var rawClient = clientTask.Result;
-					createClientTask(waitForClient, out clientTask, out clientTaskCancel);
-
-					logger.Log(LogLevel.Information, NewConnectionAcceptedID, "New connection accepted from {IP}", rawClient.Client.RemoteEndPoint);
-
 					try
 					{
-						var client = new SocketClient(rawClient, logger);
+						listener.Close();
 
-						try
-						{
-							var request = client.ReadObject<ConnectionRequest>();
+						foreach (var client in clients.Values)
+							client.Agent.Disconnect();
+						clients.Clear();
 
-							logger.Log(LogLevel.Information, NewClientAcceptedID, "New client accepted: {Login} ({IP}) v{Version}", request.Login, client.EndPoint, request.ProtocolVersion);
+						IsListening = false;
+						ListeningStatusChanged?.Invoke();
+					}
+					catch (Exception) { }
 
-							var responce = ProcessClientConnection(request, new(request.Login, client.EndPoint), plugins);
-
-							if (responce.StatusCode == ConnectionStausCode.Successful)
-								logger.Log(LogLevel.Information, ClientConnectedID, "Client ({Login}[{IP}]) connected to server successfully", request.Login, client.EndPoint);
-							else logger.Log(LogLevel.Error, ClientConnectionFailID, "Cannot connect client ({Login}[{IP}]). Status code {StatusCode}", request.Login, client.EndPoint, responce.StatusCode);
-
-							client.WriteObject(responce);
-						}
-						catch (Exception ex)
-						{
-							client.WriteObject(new ConnectionResponce(ConnectionStausCode.ProtocolError, ex.ToString(), null, null));
-							throw;
-						}
+					throw new InvalidOperationException("Dispatcher was closed, by external command. Terminating server");
+				}
+				else if (waitResult == 0) //Closed
+				{
+					try
+					{
+						listener.Close();
+						IsListening = false;
+						ListeningStatusChanged?.Invoke();
+						closeRequestCoevent.SetResult();
 					}
 					catch (Exception ex)
 					{
-						logger.Log(LogLevel.Error, ClientInitializeErrorID, ex, "Failed to initialize client");
+						closeRequestCoevent.SetException(ex);
 					}
+
+					return;
 				}
-				else if (index == ThreadDispatcherStatic.NewTaskIndex)
+				else if (waitResult == ThreadDispatcherStatic.NewTaskIndex)
 				{
 					var flag = true;
 					while (flag)
@@ -201,265 +190,168 @@ namespace StarComputer.Server
 						}
 					}
 				}
-			}
-
-
-			void createClientTask(AutoResetEvent waitForClient, out Task<TcpClient> task, out CancellationTokenSource cancellationToken)
-			{
-				var cts = new CancellationTokenSource();
-				task = connectionListener.AcceptTcpClientAsync(cts.Token).AsTask().ContinueWith(s => { waitForClient.Set(); return s.Result; });
-				cancellationToken = cts;
-			}
-		}
-
-		private ConnectionResponce ProcessClientConnection(ConnectionRequest request, ClientConnectionInformation clientInformation, IPluginStore plugins)
-		{
-			if (request.ProtocolVersion != options.TargetProtocolVersion)
-				return new ConnectionResponce(ConnectionStausCode.IncompatibleVersion, $"Target version is {options.TargetProtocolVersion}", null, null);
-
-			if (request.ServerPassword != options.ServerPassword)
-				return new ConnectionResponce(ConnectionStausCode.InvalidPassword, request.ServerPassword, null, null);
-
-			var versions = plugins.ToDictionary(s => s.Key, s => s.Value.Version);
-			if (request.Plugins.SequenceEqual(versions) == false)
-				return new ConnectionResponce(ConnectionStausCode.IncompatiblePluginVersion, "Invalid version of some plugin", null, null);
-
-			if (portRent.TryRentPort(out var port))
-			{
-				ClientApprovalResult? approvalResult = null;
-
-				try
+				else if (waitResult == 1) //HTTP context
 				{
-					approvalResult = clientApprovalAgent.ApproveClientAsync(clientInformation).Result;
+					var context = listener.EndGetContext(httpContextAsyncResult);
 
-					if (approvalResult is null)
-						return new ConnectionResponce(ConnectionStausCode.ComputerRejected, null, null, null);
-				}
-				finally
-				{
-					if (approvalResult is null)
-						port.Dispose();
-				}
+					httpContextAsyncResult = listener.BeginGetContext(null, null);
+					handlers[1] = httpContextAsyncResult.AsyncWaitHandle;
 
-				ProcessClientJoin(clientInformation, port, request);
-				var body = new SuccessfulConnectionResultBody(port.Port);
-				return new ConnectionResponce(ConnectionStausCode.Successful, null, JObject.FromObject(body), body.GetType().AssemblyQualifiedName);
-			}
-			else return new ConnectionResponce(ConnectionStausCode.NoFreePort, null, null, null);
-		}
-
-		private void ProcessClientJoin(ClientConnectionInformation information, RentedPort port, ConnectionRequest request)
-		{
-			var listener = new TcpListener(options.Interface, port.Port);
-			listener.Start();
-
-			var cts = new CancellationTokenSource();
-			var sychRoot = new object();
-
-			Task.Delay(options.ClientConnectTimeout).ContinueWith(_ => mainThreadDispatcher.DispatchTask(() =>
-			{
-				lock (sychRoot)
-				{
-					cts.Cancel();
-				}
-			}));
-
-			listener.AcceptTcpClientAsync(cts.Token).AsTask().ContinueWith(clientTask =>
-			{
-				lock (sychRoot)
-				{
-					listener.Stop();
-
-					if (clientTask.IsCompletedSuccessfully)
-					{
-						var client = clientTask.Result;
-
-						logger.Log(LogLevel.Information, ClientJoinedID, "Client ({Login}[{IP}]) joined", request.Login, information.OriginalEndPoint);
-
-						mainThreadDispatcher.DispatchTask(() =>
-						{
-							IRemoteProtocolAgent remote = new RemoteProtocolAgent(client, agentWorker, logger, bodyTypeResolver);
-							remote.Start();
-							agents.Add(remote.UniqueAgentId, new(information, port, remote));
-							ClientConnected?.Invoke(new(information, remote));
-						});
-					}
-					else
-					{
-						if (clientTask.Exception is not null)
-							logger.Log(LogLevel.Error, ClientJoinFailID, clientTask.Exception, "Failed to join client ({Login}[{IP}])", request.Login, information.OriginalEndPoint);
-						else logger.Log(LogLevel.Error, ClientJoinFailID, clientTask.Exception, "Failed to join client ({Login}[{IP}]). Reason: Timeout", request.Login, information.OriginalEndPoint);
-					}
-				}
-			});
-
-		}
-
-		private void ProcessClientRejoin(ServerSideClientInternal information, IRemoteProtocolAgent agent)
-		{
-			var listener = new TcpListener(options.Interface, information.RentedPort.Port);
-			listener.Start();
-
-			var cts = new CancellationTokenSource();
-			var sychRoot = new object();
-
-			Task.Delay(options.ClientConnectTimeout).ContinueWith(_ => mainThreadDispatcher.DispatchTask(() =>
-			{
-				lock (sychRoot)
-				{
-					cts.Cancel();
-					agent.Disconnect();
-				}
-			}));
-
-			listener.AcceptTcpClientAsync(cts.Token).AsTask().ContinueWith(clientTask =>
-			{
-				lock (sychRoot)
-				{
-					listener.Stop();
-
-					if (clientTask.IsCompletedSuccessfully)
-					{
-						var client = clientTask.Result;
-
-						logger.Log(LogLevel.Information, ClientRejoinedID, "Client ({Login}[{IP}]) rejoined", information.ConnectionInformation.Login, agent.CurrentEndPoint);
-
-						agent.Reconnect(client);
-					}
-					else
-					{
-						if (clientTask.Exception is not null)
-							logger.Log(LogLevel.Error, ClientRejoinFailID, clientTask.Exception, "Failed to rejoin client ({Login}[{IP}])", information.ConnectionInformation.Login, agent.CurrentEndPoint);
-						else logger.Log(LogLevel.Error, ClientRejoinFailID, clientTask.Exception, "Failed to rejoin client ({Login}[{IP}]). Reason: Timeout", information.ConnectionInformation.Login, agent.CurrentEndPoint);
-					}
-				}
-			});
-
-		}
-
-		public void Close()
-		{
-			onServerClosed.Set();
-		}
-
-		public IEnumerable<ServerSideClient> ListClients()
-		{
-			return agents.Select(agent => new ServerSideClient(agent.Value.ConnectionInformation, agent.Value.ProtocolAgent)).ToArray();
-		}
-
-		public ServerSideClient GetClientByAgent(Guid protocolAgentId)
-		{
-			var client = agents[protocolAgentId];
-			return new(client.ConnectionInformation, client.ProtocolAgent);
-		}
-
-		private record struct ServerSideClientInternal(ClientConnectionInformation ConnectionInformation, RentedPort RentedPort, IRemoteProtocolAgent ProtocolAgent);
-
-		private class PortRentManager
-		{
-			private readonly PortRange ports;
-			private readonly List<int> usedPorts;
-
-
-			public PortRentManager(PortRange ports)
-			{
-				usedPorts = new(ports.Count);
-				this.ports = ports;
-			}
-
-
-			public bool TryRentPort(out RentedPort port)
-			{
-				foreach (var maybePort in ports)
-				{
-					if (usedPorts.Contains(maybePort))
-						continue;
-					else
-					{
-						usedPorts.Add(maybePort);
-						port = new(maybePort, new RentFinalizer(usedPorts, maybePort));
-						return true;
-					}
-				}
-
-				port = default;
-				return false;
-			}
-
-
-			private class RentFinalizer : IDisposable
-			{
-				private readonly List<int> usedPorts;
-				private readonly int portToDelete;
-
-
-				public RentFinalizer(List<int> usedPorts, int portToDelete)
-				{
-					this.usedPorts = usedPorts;
-					this.portToDelete = portToDelete;
-				}
-
-
-				public void Dispose()
-				{
-					usedPorts.Remove(portToDelete);
+					ProcessHttpMessageAsync(context);
 				}
 			}
 		}
 
-		private record struct RentedPort(int Port, IDisposable RentFinalizer) : IDisposable
+		private void CheckClientsTimeout()
 		{
-			public void Dispose()
+			List<Guid>? clientsToClose = null;
+			foreach (var client in clients)
 			{
-				RentFinalizer.Dispose();
+				//if ((DateTime.UtcNow - client.Value.LastHeartbeat).TotalSeconds >= 15)
+				//{
+				//	clientsToClose ??= new();
+				//	clientsToClose.Add(client.Key);
+				//}
+			}
+
+			if (clientsToClose is not null)
+				foreach (var client in clientsToClose)
+					DisconnectClient(client);
+		}
+
+		private async void ProcessHttpMessageAsync(HttpListenerContext context)
+		{
+			try
+			{
+				var headers = context.Request.Headers;
+				var typeRaw =  headers[RequestTypeHeader];
+				if (typeRaw is null || Enum.TryParse<ServerRequestType>(typeRaw, ignoreCase: true, out var type) == false) throw new BadRequestException($"No {RequestTypeHeader} header in request or it is invalid");
+
+				switch (type)
+				{
+					case ServerRequestType.Connect:
+						await ProcessClientConnectAsync(context);
+						break;
+					case ServerRequestType.Heartbeat:
+						ProcessClientHeartbeat(context);
+						break;
+					case ServerRequestType.Message:
+						await ProcessClientMessageAsync(context);
+						break;
+					case ServerRequestType.Reset:
+						break;
+				}
+			}
+			catch (HttpException ex)
+			{
+				context.Response.StatusCode = (int)ex.StatusCode;
+				context.Response.ContentType = "text/plain; charset=UTF-8";
+				await context.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(ex.Message));
+			}
+			catch (Exception ex)
+			{
+				context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+				context.Response.ContentType = "text/plain; charset=UTF-8";
+				await context.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(ex.Message));
+			}
+			finally
+			{
+				context.Response.Close();
 			}
 		}
 
-		private class AgentWorker : IRemoteAgentWorker
+		private async ValueTask ProcessClientConnectAsync(HttpListenerContext context)
 		{
-			private readonly Server owner;
+			var headers = context.Request.Headers;
+			var password = headers[ConnectionPasswordHeader];
 
+			if (password != options.ServerPassword)
+				throw new HttpException(HttpStatusCode.Forbidden, "Invalid server password in connection request");
+				
+			var login = headers[ConnectionLoginHeader];
+			var addressRaw = headers[CallbackAddressHeader];
 
-			public AgentWorker(Server owner)
+			if (login is null)
+				throw new BadRequestException("No client login in connection request");
+			if (addressRaw is null)
+				throw new BadRequestException("No client callback address in connection request");
+			var address = new Uri(addressRaw);
+
+			try
 			{
-				this.owner = owner;
+				var localClient = new HttpClient();
+
+				var message = new HttpRequestMessage() { RequestUri = address };
+				message.Headers.Add(RequestTypeHeader, ClientRequestType.Ping.ToString());
+				var result = await localClient.SendAsync(message);
+				if (result.IsSuccessStatusCode == false) throw new Exception();
+			}
+			catch (Exception)
+			{
+				throw new BadRequestException("Server tried to call given callback address and did not get success result");
 			}
 
+			var agent = new RemoteProtocolAgent(address, bodyTypeResolver, mainThreadDispatcher, ClientRequestType.Message.ToString());
+			var uniqueClientID = agent.UniqueAgentId;
 
-			public void DispatchMessage(IRemoteProtocolAgent agent, ProtocolMessage message)
+			clients.Add(uniqueClientID, new(agent, new(login, address)));
+
+			agent.Start();
+
+			ClientConnected?.Invoke(GetClientByAgent(uniqueClientID));
+
+			PasteClientUniqueID(context.Response.Headers, uniqueClientID);
+
+			context.Response.StatusCode = (int)HttpStatusCode.OK;
+		}
+
+		private async ValueTask ProcessClientMessageAsync(HttpListenerContext context)
+		{
+			var guid = FetchClientUniqueID(context);
+
+			if (clients.TryGetValue(guid, out var client))
 			{
-				owner.logger.Log(LogLevel.Debug, MessageRecivedID, "New message recived from client ({Login}[{IP}])\n\t{Message}", owner.agents[agent.UniqueAgentId].ConnectionInformation.Login, agent.CurrentEndPoint, message);
+				client.ResetHeartbeatTimeout();
 
-				owner.mainThreadDispatcher.DispatchTask(() =>
-				{
-					owner.messageHandler.HandleMessageAsync(message, agent);
-				});
+				var message = await ParseMessageAsync(context, bodyTypeResolver);
+
+				await messageHandler.HandleMessageAsync(message, client.Agent);
+
+				context.Response.StatusCode = (int)HttpStatusCode.OK;
 			}
+			else throw new HttpException(HttpStatusCode.Unauthorized, "Client with given id not found");
+		}
 
-			public void HandleDisconnect(IRemoteProtocolAgent agent)
+		private void ProcessClientHeartbeat(HttpListenerContext context)
+		{
+			var guid = FetchClientUniqueID(context);
+
+			if (clients.TryGetValue(guid, out var client))
 			{
-				owner.logger.Log(LogLevel.Information, ClientDisconnectedID, "Client ({Login}[{IP}]) disconnected", owner.agents[agent.UniqueAgentId].ConnectionInformation.Login, agent.CurrentEndPoint);
-
-				owner.mainThreadDispatcher.DispatchTask(() =>
-				{
-					var internalClient = owner.agents[agent.UniqueAgentId];
-					internalClient.RentedPort.Dispose();
-					owner.agents.Remove(agent.UniqueAgentId);
-					owner.ClientDisconnected?.Invoke(new(internalClient.ConnectionInformation, internalClient.ProtocolAgent));
-				});
+				client.ResetHeartbeatTimeout();
+				context.Response.StatusCode = (int)HttpStatusCode.OK;
 			}
+			else throw new HttpException(HttpStatusCode.Unauthorized, "Client with given id not found");
+		}
 
-			public void HandleError(IRemoteProtocolAgent agent, Exception ex)
-			{
-				owner.logger.Log(LogLevel.Error, ProtocolErrorID, ex, "Error in protocol agent for client ({Login}[{IP}])", owner.agents[agent.UniqueAgentId].ConnectionInformation.Login, agent.CurrentEndPoint);
-			}
+		private void DisconnectClient(Guid clientId)
+		{
+			clients.Remove(clientId, out var client);
+			if (client is null)
+				throw new NullReferenceException();
+			client.Agent.Disconnect();
+			ClientDisconnected?.Invoke(new ServerSideClient(client.ConnectionInformation, client.Agent));
+		}
 
-			public void ScheduleReconnect(IRemoteProtocolAgent agent)
-			{
-				owner.logger.Log(LogLevel.Information, ClientConnectionLostID, "Client ({Login}[{IP}]) connection lost", owner.agents[agent.UniqueAgentId].ConnectionInformation.Login, agent.CurrentEndPoint);
 
-				owner.ProcessClientRejoin(owner.agents[agent.UniqueAgentId], agent);
-			}
+		private record ListenRequest(TaskCompletionSource Task);
+
+		private record ServerSideClientInternal(IRemoteProtocolAgent Agent, ClientConnectionInformation ConnectionInformation)
+		{
+			public DateTime LastHeartbeat { get; private set; } = DateTime.UtcNow;
+
+
+			public void ResetHeartbeatTimeout() => LastHeartbeat = DateTime.UtcNow;
 		}
 	}
 }

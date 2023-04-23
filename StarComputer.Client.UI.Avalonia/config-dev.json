@@ -1,7 +1,7 @@
 ﻿{
 	"Client":
 	{
-		
+		"Interface": "127.0.0.1:1624"
 	},
 
 	"Connection":
@@ -9,7 +9,7 @@
 		"Locked": true,
 		"LoginLocked": true,
 		"IP": "127.0.0.1",
-		"Port": 623,
+		"Port": 1623,
 		"Password": "DEBUG PASSWORD",
 		"Login": "Some login 1"
 	},

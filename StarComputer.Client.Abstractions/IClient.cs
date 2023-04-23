@@ -11,13 +11,15 @@ namespace StarComputer.Client.Abstractions
 		public event Action ConnectionStatusChanged;
 
 
+		public ValueTask TerminateAsync();
+
 		public ValueTask ConnectAsync(ConnectionConfiguration connectionConfiguration);
+
+		public ValueTask CloseAsync();
 
 		public IRemoteProtocolAgent GetServerAgent();
 
 		public ConnectionConfiguration GetConnectionConfiguration();
-
-		public void Close();
 
 		public void MainLoop(IPluginStore plugins);
 	}

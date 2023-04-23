@@ -2,18 +2,18 @@
 {
 	public class PluginProtocolMessage
 	{
-		public PluginProtocolMessage(object? body, IEnumerable<Attachment>? attachments = null)
+		public PluginProtocolMessage(object body, MessageAttachment? attachment = null)
 		{
 			Body = body;
-			Attachments = attachments?.ToDictionary(s => s.Name);
+			Attachment = attachment;
 		}
 
 
-		public object? Body { get; }
+		public object Body { get; }
 
-		public IReadOnlyDictionary<string, Attachment>? Attachments { get; }
+		public MessageAttachment? Attachment { get; }
 
 
-		public record Attachment(string Name, CopyToDelegate CopyDelegate, int Length);
+		public record MessageAttachment(string Name, CopyToDelegate CopyDelegate, int Length);
 	}
 }

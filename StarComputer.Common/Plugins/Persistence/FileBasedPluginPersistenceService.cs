@@ -51,6 +51,10 @@ namespace StarComputer.Common.Plugins.Persistence
 		public async ValueTask SaveRawDataAsync(PersistenceAddress address, ReadOnlyMemory<byte> bytes)
 		{
 			var path = Path.Combine(basePath, address.Path);
+
+			Directory.CreateDirectory(Path.GetDirectoryName(path) ?? throw new NullReferenceException());
+			File.Create(path).Close();
+
 			using var stream = File.OpenWrite(path);
 			await stream.WriteAsync(bytes);
 		}

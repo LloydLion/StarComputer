@@ -23,10 +23,13 @@
 			var broadcastPage = "Broadcast";
 			var messages = {Broadcast:{{InitialMessages}}};
 			var selectedPage = broadcastPage;
-			reloadList();
 
+			async function initialize()
+			{
+				await reloadList();
+			}
 
-			function visualizeMessageSS(page, message)
+			async function visualizeMessageSS(page, message)
 			{
 				if (page === null)
 				{
@@ -40,10 +43,10 @@
 				}
 				messages[page].push(message);
 
-				reloadList();
+				await reloadList();
 			}
 
-			function reloadList()
+			async function reloadList()
 			{
 				const list = document.getElementById("messagesList");
 				removeAllChildNodes(list);
@@ -65,12 +68,16 @@
 					else if (message.Type == "File")
 					{
 						var fileUUID = message.Content;
+
+						var meta = await context.getFileMeta(fileUUID);
+						var fullFileName = meta.FileName + meta.Extension
+
 						var downloadBtn = document.createElement("button");
-						downloadBtn.append(fileUUID);
-						downloadBtn.addEventListener("click", async () =>
+						downloadBtn.append(meta.FileName + " [" + meta.Extension + "]");
+						downloadBtn.addEventListener("click", ((uuid, fileName) => async () =>
 						{
-							await loadFile(fileUUID);
-						});
+							await loadFile(uuid, fileName);
+						})(fileUUID, fullFileName));
 
 						div.append(downloadBtn);
 					}
@@ -85,10 +92,10 @@
 				}
 			}
 
-			function switchPage(page)
+			async function switchPage(page)
 			{
 				selectedPage = page;
-				reloadList();
+				await reloadList();
 			}
 
 			function createPageButton(page)
@@ -122,12 +129,12 @@
 				}
 			}
 
-			async function loadFile(fileUUID)
+			async function loadFile(fileUUID, fileFullName)
 			{
 				var url = await context.loadFile(fileUUID);
 
 				var link = document.createElement("a");
-				link.setAttribute('download', "file");
+				link.setAttribute('download', fileFullName);
 				link.href = url;
 
 				link.click();

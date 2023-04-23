@@ -10,6 +10,10 @@ using StarComputer.Common.Abstractions.Connection;
 using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
+using System.Diagnostics.CodeAnalysis;
+using static StarComputer.Common.Protocol.HttpProtocolHelper;
+using System.Text;
+using System.ComponentModel;
 
 namespace StarComputer.Client
 {
@@ -40,20 +44,24 @@ namespace StarComputer.Client
 		private readonly ILogger<Client> logger;
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 		private readonly IBodyTypeResolver bodyTypeResolver;
+		private readonly HttpListener listener;
+		private readonly HttpClient httpClient = new();
+		private readonly string callbackUri;
 
-		private readonly AutoResetEvent onConnectionScheduled = new(false);
-		private readonly AutoResetEvent onServerDisconnected = new(false);
-		private readonly AutoResetEvent onClientClosed = new(false);
+		private ClientConnectTask? clientConnectTask;
+		private readonly AutoResetEvent onClientConnectRequested = new(false);
+		private ClientCloseTask? clientCloseTask;
+		private readonly AutoResetEvent onClientCloseRequested = new(false);
 
 		private Connection? currentConnection;
-		private bool isConnected;
-		private bool isClosing;
+		private bool isTerminating = false;
 
 
-		public Client(IOptions<ClientConfiguration> options,
-			IMessageHandler messageHandler,
-			ILogger<Client> logger,
+		public Client(
+			IOptions<ClientConfiguration> options,
 			IThreadDispatcher<Action> mainThreadDispatcher,
+			ILogger<Client> logger,
+			IMessageHandler messageHandler,
 			IBodyTypeResolver bodyTypeResolver)
 		{
 			this.options = options.Value;
@@ -61,149 +69,145 @@ namespace StarComputer.Client
 			this.logger = logger;
 			this.mainThreadDispatcher = mainThreadDispatcher;
 			this.bodyTypeResolver = bodyTypeResolver;
+
+			listener = new();
+			callbackUri = options.Value.ConstructClientHttpAddress();
+			listener.Prefixes.Add(callbackUri);
 		}
 
 
-		public bool IsConnected { get => isConnected; private set { isConnected = value; ConnectionStatusChanged?.Invoke(); } }
+		public bool IsConnected => CurrentConnection is not null;
+
+		[MemberNotNullWhen(true, nameof(IsConnected))]
+		private Connection? CurrentConnection { get => currentConnection; set { currentConnection = value; ConnectionStatusChanged?.Invoke(); } }
 
 
 		public event Action? ConnectionStatusChanged;
 
 
-		public void Close()
+		public ValueTask TerminateAsync()
 		{
-			isClosing = true;
+			isTerminating = true;
 
-			if (isConnected)
-				GetServerAgent().Disconnect();
-			onClientClosed.Set();
+			if (IsConnected) return CloseAsync();
+			else
+			{
+				onClientConnectRequested.Set();
+				return ValueTask.CompletedTask;
+			}
+		}
+
+		public ValueTask CloseAsync()
+		{
+			if (IsConnected == false)
+				throw new InvalidOperationException("Enable to close closed client");
+
+			var tcs = new TaskCompletionSource();
+			clientCloseTask = new ClientCloseTask(tcs);
+			onClientCloseRequested.Set();
+			return new(tcs.Task);
 		}
 
 		public ValueTask ConnectAsync(ConnectionConfiguration connectionConfiguration)
 		{
-			if (currentConnection is not null)
-				throw new InvalidOperationException("Disconnect from server before open new connection");
+			if (IsConnected)
+				throw new InvalidOperationException("Client already connected, close client before connect again");
 
-			var connectionTaskTCS = new TaskCompletionSource();
-			currentConnection = new(connectionTaskTCS, connectionConfiguration);
-			onConnectionScheduled.Set();
-			return new(connectionTaskTCS.Task);
+			var tcs = new TaskCompletionSource();
+			clientConnectTask = new ClientConnectTask(tcs, connectionConfiguration);
+			onClientConnectRequested.Set();
+			return new(tcs.Task);
 		}
 
 		public ConnectionConfiguration GetConnectionConfiguration()
 		{
-			if (currentConnection is null)
-				throw new InvalidOperationException("Connect to server before get agent");
-			return currentConnection.Configuration;
+			if (CurrentConnection is null)
+				throw new InvalidOperationException("Enable to get configuration of closed client");
+			return CurrentConnection.Configuration;
 		}
 
 		public IRemoteProtocolAgent GetServerAgent()
 		{
-			if (currentConnection is null || currentConnection.IsAgentInitialized == false)
-				throw new InvalidOperationException("Connect to server before get agent");
-			return currentConnection.Agent;
+			if (CurrentConnection is null)
+				throw new InvalidOperationException("Enable to get server agent of closed client");
+			return CurrentConnection.ServerAgent;
 		}
 
 		public void MainLoop(IPluginStore plugins)
 		{
-			while (isClosing == false)
+			listener.Start();
+
+			while (isTerminating == false)
 			{
-				logger.Log(LogLevel.Information, ClientReadyID, "Client ready to connect to a server");
+				onClientConnectRequested.WaitOne();
+				if (isTerminating) break;
 
-				WaitHandle.WaitAny(new[] { onConnectionScheduled, onClientClosed });
-				if (isClosing) break;
-
-				if (currentConnection is null)
-					throw new Exception("Impossible exception");
-
-				(IPEndPoint endPoint, string serverPassword, string login) = currentConnection.Configuration;
-
-				var rawClient = new TcpClient();
-				int port;
+				if (clientConnectTask is null) continue;
 
 				try
 				{
-					rawClient.Connect(endPoint);
-
-					logger.Log(LogLevel.Information, NewConnectionToServerID, "New connection to {ServerEndPoint}", endPoint);
-
-					var client = new SocketClient(rawClient, logger);
-
-					var pluginsVersions = plugins.ToDictionary(s => s.Key, s => s.Value.Version);
-					client.WriteObject(new ConnectionRequest(login, serverPassword, options.TargetProtocolVersion, pluginsVersions));
-
-					logger.Log(LogLevel.Debug, ClientDataSentID, "Client data sent to server at {ServerEndPoint}. Login - {Login}, password - {Password}", endPoint, login, serverPassword);
-
-					while (client.IsDataAvailable == false) Thread.Sleep(10);
-					var responce = client.ReadObject<ConnectionResponce>();
-
-					if (responce.DebugMessage is not null)
-						logger.Log(LogLevel.Debug, DebugMessageFromServerID, "Debug message from server: {DebugMessage}", responce.DebugMessage);
-
-					if (responce.StatusCode != ConnectionStausCode.Successful)
-						throw new Exception($"Connection failed: {responce.StatusCode}");
-
-					var bodyJson = responce.ResponceBody ?? throw new NullReferenceException();
-					var body = bodyJson.ToObject<SuccessfulConnectionResultBody>() ?? throw new NullReferenceException();
-
-					port = body.ConnectionPort;
-
-					client.Close();
-
-					logger.Log(LogLevel.Information, ConnectionAsClientID, "Connected to server, join port - {JoinPort}", port);
+					CurrentConnection = FormConnection(clientConnectTask.Configuration);
+					clientConnectTask.Task.SetResult();
 				}
 				catch (Exception ex)
 				{
-					logger.Log(LogLevel.Error, ClientConnectionFailID, ex, "Failed to connect to the server");
-					currentConnection.ConnectionTask.SetException(ex);
-					currentConnection = null;
+					clientConnectTask.Task.SetException(ex);
 					continue;
 				}
 
-				try
+
+				var httpContextAsyncResult = listener.BeginGetContext(null, null);
+
+				var handlers = new WaitHandle[] { onClientCloseRequested, httpContextAsyncResult.AsyncWaitHandle };
+
+				while (IsConnected)
 				{
-					var endpoint = new IPEndPoint(endPoint.Address, port);
+					var waitResult = mainThreadDispatcher.WaitHandles(handlers, 2000);
 
-					rawClient = new TcpClient();
-					rawClient.Connect(endpoint);
+					if (waitResult == ThreadDispatcherStatic.TimeoutIndex)
+					{
+						var isOK = SendHeartbeat();
+						if (isOK == false)
+						{
+							CurrentConnection!.ServerAgent.Disconnect();
+							CurrentConnection = null;
+						}
+					}
+					else if (waitResult == ThreadDispatcherStatic.ClosedIndex)
+					{
+						try
+						{
+							listener.Close();
+						}
+						catch (Exception) { }
 
-					var agentWorker = new AgentWorker(this, endpoint);
+						throw new InvalidOperationException("Dispatcher was closed, by external command. Terminating server");
+					}
+					else if (waitResult == 0) //Closed
+					{
+						if (clientCloseTask is null) continue;
 
-					var agent = new RemoteProtocolAgent(rawClient, agentWorker, logger, bodyTypeResolver);
-					agent.Start();
+						try
+						{
+							CurrentConnection!.ServerAgent.Disconnect();
+							CurrentConnection = null;
+							clientCloseTask.Task.SetResult();
+						}
+						catch (Exception ex)
+						{
+							clientCloseTask.Task.SetException(ex);
+						}
 
-					currentConnection.InitializeAgent(agent);
-
-					logger.Log(LogLevel.Information, ClientJoinedID, "Joined to {ServerEndPoint} as ({Login}[{LocalIP}])",
-						endPoint, login, (IPEndPoint)rawClient.Client.LocalEndPoint!);
-				}
-				catch (Exception ex)
-				{
-					logger.Log(LogLevel.Error, ClientJoinFailID, ex, "Failed to join to server at {ServerEndPoint}", endPoint);
-					currentConnection.ConnectionTask.SetException(ex);
-					currentConnection = null;
-					continue;
-				}
-
-				IsConnected = true;
-				currentConnection.ConnectionTask.SetResult();
-
-				var handles = new[] { onServerDisconnected };
-
-				while (true)
-				{
-					logger.Log(LogLevel.Trace, WaitingNewTasksID, "Waiting for new task or server message");
-					var index = mainThreadDispatcher.WaitHandles(handles);
-
-
-					if (index == ThreadDispatcherStatic.NewTaskIndex)
+						return;
+					}
+					else if (waitResult == ThreadDispatcherStatic.NewTaskIndex)
 					{
 						var flag = true;
 						while (flag)
 						{
 							try
 							{
-								logger.Log(LogLevel.Trace, ExecutingNewTaskID, "Executing new client task");
+								logger.Log(LogLevel.Trace, ExecutingNewTaskID, "Server started to execute new task");
 								flag = mainThreadDispatcher.ExecuteTask();
 							}
 							catch (Exception ex)
@@ -212,95 +216,145 @@ namespace StarComputer.Client
 							}
 						}
 					}
-					else if (index == ThreadDispatcherStatic.ClosedIndex)
+					else if (waitResult == 1) //HTTP context
 					{
-						throw new InvalidOperationException("Dispatcher is closed, by external command. Terminating client");
-					}
-					else //index - 0
-					{
-						IsConnected = false;
-						logger.Log(LogLevel.Information, CloseSignalRecivedID, "Connection closing by internal command");
-						currentConnection = null;
-						break;
+						var context = listener.EndGetContext(httpContextAsyncResult);
+
+						httpContextAsyncResult = listener.BeginGetContext(null, null);
+						handlers[1] = httpContextAsyncResult.AsyncWaitHandle;
+
+						ProcessHttpMessageAsync(context);
 					}
 				}
 			}
+
+			listener.Stop();
 		}
 
-
-		private record Connection(TaskCompletionSource ConnectionTask, ConnectionConfiguration Configuration)
+		private bool SendHeartbeat()
 		{
-			private RemoteProtocolAgent? agent;
+			if (CurrentConnection is null)
+				throw new NullReferenceException();
 
+			var serverEndpoint = new Uri(CurrentConnection.Configuration.ConstructServerHttpAddress());
 
-			public RemoteProtocolAgent Agent => agent ?? throw new NullReferenceException();
+			var message = new HttpRequestMessage();
 
-			public bool IsAgentInitialized => agent is not null;
+			message.Headers.Add(RequestTypeHeader, ServerRequestType.Heartbeat.ToString());
+			PasteClientUniqueID(message.Headers, CurrentConnection.UniqueID);
+			message.RequestUri = serverEndpoint;
 
-
-			public void InitializeAgent(RemoteProtocolAgent agent)
+			int failCounter = 0;
+			try
 			{
-				if (this.agent is not null)
-					throw new InvalidOperationException("Agent for this connection already initialized");
-				this.agent = agent;
+				var result = httpClient.Send(message);
+				if (result.IsSuccessStatusCode == false)
+					throw new Exception($"(Heartbeat) Server returned non successful status code [{result.StatusCode}]: " + result.Content.ReadAsStringAsync().Result);
 			}
+			catch (Exception ex)
+			{
+				logger.Log(LogLevel.Error, ex, "Heartbeat error");
+
+				failCounter++;
+
+				if (failCounter > 10)
+					return false;
+			}
+
+			return true;
 		}
 
-		private class AgentWorker : IRemoteAgentWorker
+		private Connection FormConnection(ConnectionConfiguration configuration)
 		{
-			private readonly Client owner;
-			private readonly IPEndPoint connectionPoint;
+			var serverEndpoint = new Uri(configuration.ConstructServerHttpAddress());
 
+			var message = new HttpRequestMessage();
 
-			public AgentWorker(Client owner, IPEndPoint connectionPoint)
+			message.Headers.Add(RequestTypeHeader, ServerRequestType.Connect.ToString());
+			message.Headers.Add(ConnectionPasswordHeader, configuration.ServerPassword);
+			message.Headers.Add(ConnectionLoginHeader, configuration.Login);
+			message.Headers.Add(CallbackAddressHeader, callbackUri);
+			message.RequestUri = serverEndpoint;
+
+			var asyncResult = listener.BeginGetContext((result) =>
 			{
-				this.owner = owner;
-				this.connectionPoint = connectionPoint;
-			}
+				var context = listener.EndGetContext(result);
 
+				var headers = context.Request.Headers;
+				var typeRaw = headers[RequestTypeHeader];
+				if (typeRaw is null || Enum.TryParse<ClientRequestType>(typeRaw, ignoreCase: true, out var type) == false || type != ClientRequestType.Ping)
+					context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+				else context.Response.StatusCode = (int)HttpStatusCode.OK;
 
-			public void HandleDisconnect(IRemoteProtocolAgent agent)
+				context.Response.Close();
+			}, null);
+
+			var result = httpClient.Send(message);
+
+			if (result.IsSuccessStatusCode == false)
+				throw new Exception($"Server returned non successful status code [{result.StatusCode}]: " + result.Content.ReadAsStringAsync().Result);
+
+			var uniqueID = FetchClientUniqueID(result);
+
+			var agent = new RemoteProtocolAgent(serverEndpoint, bodyTypeResolver, mainThreadDispatcher, ServerRequestType.Message.ToString(), uniqueID);
+			var connection = new Connection(configuration, agent, uniqueID);
+
+			return connection;
+		}
+
+		private async void ProcessHttpMessageAsync(HttpListenerContext context)
+		{
+			try
 			{
-				owner.logger.Log(LogLevel.Information, DisconnectedID, "Disconnection from server, session end");
-				owner.onServerDisconnected.Set();
-			}
+				var headers = context.Request.Headers;
+				var typeRaw = headers[RequestTypeHeader];
+				if (typeRaw is null || Enum.TryParse<ClientRequestType>(typeRaw, ignoreCase: true, out var type) == false)
+					throw new BadRequestException($"No {RequestTypeHeader} header in request or it is invalid");
 
-			public void HandleError(IRemoteProtocolAgent agent, Exception ex)
-			{
-				owner.logger.Log(LogLevel.Error, ProtocolErrorID, ex, "Error in protocol agent for server");
-			}
-
-			public void ScheduleReconnect(IRemoteProtocolAgent agent)
-			{
-				owner.logger.Log(LogLevel.Information, ConnectionLostID, "Connection to server lost");
-				owner.mainThreadDispatcher.DispatchTask(async () =>
+				switch (type)
 				{
-					await Task.Delay(owner.options.ServerReconnectionPrepareTimeout);
-
-					var client = new TcpClient();
-
-					try { client.Connect(connectionPoint); }
-					catch (SocketException)
-					{
-						owner.logger.Log(LogLevel.Error, ClientRejoinFailID, "Failed to rejoin to server, connection terminated");
-						agent.Disconnect();
-						return;
-					}
-
-					agent.Reconnect(client);
-					owner.logger.Log(LogLevel.Error, ClientRejoinedID, "Client rejoined to server");
-				});
+					case ClientRequestType.Message:
+						await ProcessServerMessageAsync(context);
+						break;
+					case ClientRequestType.Ping:
+						context.Response.StatusCode = (int)HttpStatusCode.OK;
+						break;
+					case ClientRequestType.Reset:
+						break;
+				}
 			}
-
-			public void DispatchMessage(IRemoteProtocolAgent agent, ProtocolMessage message)
+			catch (HttpException ex)
 			{
-				owner.logger.Log(LogLevel.Debug, MessageRecivedID, "New message recived from server\n\t{Message}", message);
-
-				owner.mainThreadDispatcher.DispatchTask(() =>
-				{
-					owner.messageHandler.HandleMessageAsync(message, agent);
-				});
+				context.Response.StatusCode = (int)ex.StatusCode;
+				context.Response.ContentType = "text/plain; charset=UTF-8";
+				await context.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(ex.Message));
+			}
+			catch (Exception ex)
+			{
+				context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+				context.Response.ContentType = "text/plain; charset=UTF-8";
+				await context.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(ex.Message));
+			}
+			finally
+			{
+				context.Response.Close();
 			}
 		}
+
+		private async ValueTask ProcessServerMessageAsync(HttpListenerContext context)
+		{
+			var message = await ParseMessageAsync(context, bodyTypeResolver);
+
+			await messageHandler.HandleMessageAsync(message, CurrentConnection?.ServerAgent ?? throw new NullReferenceException());
+
+			context.Response.StatusCode = (int)HttpStatusCode.OK;
+		}
+
+
+		private record ClientConnectTask(TaskCompletionSource Task, ConnectionConfiguration Configuration);
+
+		private record ClientCloseTask(TaskCompletionSource Task);
+
+		private record Connection(ConnectionConfiguration Configuration, IRemoteProtocolAgent ServerAgent, Guid UniqueID);
 	}
 }

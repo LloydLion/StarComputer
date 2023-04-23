@@ -58,13 +58,10 @@ namespace ChatPlugin
 		{
 			public string FullFileName { get; }
 
-			public string AttachmentName { get; }
 
-
-			public UploadFileRequest(string fullFileName, string attachmentName)
+			public UploadFileRequest(string fullFileName)
 			{
 				FullFileName = fullFileName;
-				AttachmentName = attachmentName;
 			}
 		}
 
@@ -85,13 +82,13 @@ namespace ChatPlugin
 		{
 			public string UUID { get; }
 
-			public string? TargetAttachmentName { get; }
+			public bool NeedAddFileContent { get; }
 
 
-			public LoadFileRequest(string uuid, string? targetAttachmentName = null)
+			public LoadFileRequest(string uuid, bool needAddFileContent)
 			{
 				UUID = uuid;
-				TargetAttachmentName = targetAttachmentName;
+				NeedAddFileContent = needAddFileContent;
 			}
 		}
 

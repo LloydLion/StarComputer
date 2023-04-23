@@ -25,6 +25,7 @@ namespace ChatPlugin
 
 				await ui.LoadHTMLPageAsync(new PluginResource("client.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", messages.Select(s => new MessageUIDTO(s)), useJson: true));
 				ui.SetJSPluginContext(clientUI);
+				ui.ExecuteJavaScriptFunction("initialize");
 			};
 
 			clientProtocolEnviroment.Client.ClientDisconnected += async () =>
@@ -76,24 +77,24 @@ namespace ChatPlugin
 				var bytesData = new byte[realDataLength];
 				Buffer.BlockCopy(data, 0, bytesData, 0, realDataLength);
 
-				var message = new PluginProtocolMessage(new UploadFileRequest(fileName, "file"), new[] { new PluginProtocolMessage.Attachment("file", (stream) => stream.WriteAsync(bytesData), realDataLength) });
+				var message = new PluginProtocolMessage(new UploadFileRequest(fileName), new PluginProtocolMessage.MessageAttachment("file", (stream) => stream.WriteAsync(bytesData), realDataLength));
 				var responce = await owner.SendMessageAndRequestResponse<UploadFileResponce>(owner.ClientOnly().Client.GetServerAgent(), message);
 				return responce.Body.UUID;
 			}
 
 			public async Task<FileMetaUIDTO> GetFileMeta(string uuid)
 			{
-				var message = new PluginProtocolMessage(new LoadFileRequest(uuid));
+				var message = new PluginProtocolMessage(new LoadFileRequest(uuid, needAddFileContent: false));
 				var responce = await owner.SendMessageAndRequestResponse<LoadFileResponce>(owner.ClientOnly().Client.GetServerAgent(), message);
 				return new FileMetaUIDTO(responce.Body.FileName, responce.Body.Extension);
 			}
 
 			public async Task<string> LoadFile(string uuid)
 			{
-				var message = new PluginProtocolMessage(new LoadFileRequest(uuid, "file"));
-				var responce = await owner.SendMessageAndRequestResponse<LoadFileResponce>(owner.ClientOnly().Client.GetServerAgent(), message);
+				var message = new PluginProtocolMessage(new LoadFileRequest(uuid, needAddFileContent: true));
+				var responce = await owner.SendMessageAndRequestResponse<LoadFileResponce>(owner.ClientOnly().Client.GetServerAgent(), message, isWaitsAttachment: true);
 
-				var attachment = responce.Message.Attachments?["file"] ?? throw new NullReferenceException();
+				var attachment = responce.Message.Attachment ?? throw new NullReferenceException();
 
 				using var memory = new MemoryStream(attachment.Length);
 				await attachment.CopyDelegate(memory);

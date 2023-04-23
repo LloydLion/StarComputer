@@ -5,8 +5,10 @@ using StarComputer.Common.Abstractions.Threading;
 using System.ComponentModel;
 using System.Dynamic;
 using System.Runtime.CompilerServices;
+using Xilium.CefGlue;
 using Xilium.CefGlue.Avalonia;
 using Xilium.CefGlue.Common.Events;
+using Xilium.CefGlue.Common.Handlers;
 
 namespace StarComputer.UI.Avalonia
 {
@@ -38,6 +40,8 @@ namespace StarComputer.UI.Avalonia
 			if (Dispatcher.UIThread.CheckAccess())
 				browser = new();
 			else browser = Dispatcher.UIThread.InvokeAsync(() => new AvaloniaCefBrowser(), DispatcherPriority.Send).Result;
+
+			browser.DownloadHandler = new CustomDownloadHandler();
 
 			browser.AddressChanged += (sender, e) =>
 			{
@@ -140,6 +144,25 @@ namespace StarComputer.UI.Avalonia
 			{
 				variable = newValue;
 				PropertyChanged?.Invoke(this, new(propertyName));
+			}
+		}
+
+
+		private class CustomDownloadHandler : DownloadHandler
+		{
+			protected override bool CanDownload(CefBrowser browser, string url, string requestMethod)
+			{
+				return true;
+			}
+
+			protected override void OnBeforeDownload(CefBrowser browser, CefDownloadItem downloadItem, string suggestedName, CefBeforeDownloadCallback callback)
+			{
+				callback.Continue(suggestedName, showDialog: true);
+			}
+
+			protected override void OnDownloadUpdated(CefBrowser browser, CefDownloadItem downloadItem, CefDownloadItemCallback callback)
+			{
+				callback.Resume();
 			}
 		}
 	}

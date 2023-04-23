@@ -26,6 +26,7 @@ using StarComputer.Server.Abstractions;
 using System.Threading.Tasks;
 using StarComputer.Common.Plugins.Persistence;
 using StarComputer.Common.Abstractions.Plugins.Persistence;
+using StarComputer.Common.Abstractions;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -51,7 +52,13 @@ namespace StarComputer.Client.UI.Avalonia
 			};
 
 			var services = new ServiceCollection()
-				.Configure<ClientConfiguration>(s => config.GetSection("Client").Bind(s))
+				.Configure<ClientConfiguration>(s =>
+				{
+					var configSection = config.GetSection("Client");
+					s.ClientHttpAddressTemplate = configSection.GetValue<string>("ClientHttpAddressTemplate") ?? StaticInformation.ClientHttpAddressTemplate;
+					var connectionInterface = configSection.GetValue<string>("Interface");
+					if (connectionInterface is not null) s.Interface = IPEndPoint.Parse(connectionInterface);
+				})
 				.Configure<FileResourcesCatalog.Options>(s => config.GetSection("Resources").Bind(s))
 				.Configure<ReflectionPluginLoader.Options>(s =>
 				{
@@ -64,12 +71,14 @@ namespace StarComputer.Client.UI.Avalonia
 					s.IsConnectionLoginLocked = configSection.GetValue<bool>("LoginLocked");
 
 					s.InitialConnectionInformation = new(new IPEndPoint(
-						IPAddress.Parse(
-							configSection.GetValue<string>("IP")!),
+							IPAddress.Parse(configSection.GetValue<string>("IP")!),
 							configSection.GetValue<int>("Port")
 						),
 						configSection.GetValue<string>("Password")!,
-						configSection.GetValue<string>("Login")!);
+						configSection.GetValue<string>("Login")!)
+					{
+						ServerHttpAddressTemplate = configSection.GetValue<string>("ServerHttpAddressTemplate") ?? StaticInformation.ServerHttpAddressTemplate
+					};
 				})
 				.Configure<HTMLUIManager.Options>(config.GetSection("HTMLPUI"))
 				.Configure<FileBasedPluginPersistenceServiceProvider.Options>(s => config.GetSection("PluginPersistence").Bind(s))
