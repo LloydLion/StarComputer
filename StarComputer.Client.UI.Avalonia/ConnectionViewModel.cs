@@ -44,7 +44,7 @@ namespace StarComputer.Client.UI.Avalonia
 				}
 			};
 
-			client.ConnectionStatusChanged += () => Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(IsConnected)), DispatcherPriority.Send);
+			client.ConnectionStatusChanged += (sender, e) => Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(IsConnected)), DispatcherPriority.Send);
 
 			this.client = client;
 
@@ -60,9 +60,9 @@ namespace StarComputer.Client.UI.Avalonia
 		}
 
 
-		public void Disconnect()
+		public async void Disconnect()
 		{
-			client.GetServerAgent().Disconnect();
+			await client.CloseAsync();
 		}
 
 		public async ValueTask ConnectToServerAsync()

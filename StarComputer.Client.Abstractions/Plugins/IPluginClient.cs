@@ -8,9 +8,9 @@ namespace StarComputer.Client.Abstractions.Plugins
 		public bool IsConnected { get; }
 
 
-		public event Action ClientConnected;
+		public event EventHandler ClientConnected;
 
-		public event Action ClientDisconnected;
+		public event EventHandler ClientDisconnected;
 
 
 		public IPluginRemoteAgent GetServerAgent();

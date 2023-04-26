@@ -18,7 +18,7 @@ namespace ChatPlugin
 
 		protected override void Initialize(IClientProtocolEnviroment clientProtocolEnviroment)
 		{
-			clientProtocolEnviroment.Client.ClientConnected += async () =>
+			clientProtocolEnviroment.Client.ClientConnected += async (sender, e) =>
 			{
 				var responce = await SendMessageAndRequestResponse<ClientChatInitializationModel>(clientProtocolEnviroment.Client.GetServerAgent(), new ClientChatInitializationRequest());
 				var messages = responce.Body.Messages;
@@ -28,7 +28,7 @@ namespace ChatPlugin
 				ui.ExecuteJavaScriptFunction("initialize");
 			};
 
-			clientProtocolEnviroment.Client.ClientDisconnected += async () =>
+			clientProtocolEnviroment.Client.ClientDisconnected += async (sender, e) =>
 			{
 				await ui.LoadEmptyPageAsync();
 			};

@@ -1,4 +1,5 @@
-﻿using StarComputer.Common.Abstractions.Protocol;
+﻿using StarComputer.Common.Abstractions;
+using StarComputer.Common.Abstractions.Protocol;
 using StarComputer.Common.Abstractions.Protocol.Bodies;
 using StarComputer.Common.Abstractions.Threading;
 using System.Net;
@@ -28,6 +29,8 @@ namespace StarComputer.Common.Protocol
 			this.mainThreadDispathcer = mainThreadDispathcer;
 			this.messageSendRequestTypeHeader = messageSendRequestTypeHeader;
 			this.uniqueClientId = uniqueClientId;
+
+			client.Timeout = StaticInformation.DefaultHttpTimeout;
 		}
 
 

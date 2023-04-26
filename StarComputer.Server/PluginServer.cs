@@ -17,14 +17,14 @@ namespace StarComputer.Server
 		{
 			this.server = server;
 			this.targetPluginDomain = targetPluginDomain;
-			connectionHandler = new(server, targetPluginDomain);
+			connectionHandler = new(server, targetPluginDomain, this);
 		}
 
 
-		public event Action<ServerSidePluginClient>? ClientConnected
+		public event EventHandler<ServerPluginClientStatusChangedEventArgs>? ClientConnected
 		{ add => connectionHandler.ClientConnectHandler += value; remove => connectionHandler.ClientConnectHandler -= value; }
 
-		public event Action<ServerSidePluginClient>? ClientDisconnected
+		public event EventHandler<ServerPluginClientStatusChangedEventArgs>? ClientDisconnected
 		{ add => connectionHandler.ClientDisconnectHandler += value; remove => connectionHandler.ClientDisconnectHandler -= value; }
 
 
@@ -44,33 +44,35 @@ namespace StarComputer.Server
 		{
 			private readonly IServer server;
 			private readonly PluginDomain targetPluginDomain;
+			private readonly PluginServer owner;
 
-			private Action<ServerSidePluginClient>? clientConnectHandler;
-			private Action<ServerSidePluginClient>? clientDisconnectHandler;
+			private EventHandler<ServerPluginClientStatusChangedEventArgs>? clientConnectHandler;
+			private EventHandler<ServerPluginClientStatusChangedEventArgs>? clientDisconnectHandler;
 			private bool isConnectedAttached = false;
 			private bool isDisconnectedAttached = false;
 
 
-			public Action<ServerSidePluginClient>? ClientConnectHandler { get => clientConnectHandler; set { clientConnectHandler = value; NotifyChanged(); } }
+			public EventHandler<ServerPluginClientStatusChangedEventArgs>? ClientConnectHandler { get => clientConnectHandler; set { clientConnectHandler = value; NotifyChanged(); } }
 
-			public Action<ServerSidePluginClient>? ClientDisconnectHandler { get => clientDisconnectHandler; set { clientDisconnectHandler = value; NotifyChanged(); } }
+			public EventHandler<ServerPluginClientStatusChangedEventArgs>? ClientDisconnectHandler { get => clientDisconnectHandler; set { clientDisconnectHandler = value; NotifyChanged(); } }
 
 
-			public ConnectionHandler(IServer server, PluginDomain targetPluginDomain)
+			public ConnectionHandler(IServer server, PluginDomain targetPluginDomain, PluginServer owner)
 			{
 				this.server = server;
 				this.targetPluginDomain = targetPluginDomain;
+				this.owner = owner;
 			}
 
 
-			public void OnClientConnected(ServerSideClient client)
+			public void OnClientConnected(object? sender, ServerClientStatusChangedEventArgs e)
 			{
-				clientConnectHandler?.Invoke(new(client.ConnectionInformation, new PluginRemoteAgent(client.ProtocolAgent, targetPluginDomain)));
+				clientConnectHandler?.Invoke(owner, new(new(e.Client.ConnectionInformation, new PluginRemoteAgent(e.Client.ProtocolAgent, targetPluginDomain))));
 			}
 
-			public void OnClientDisconnected(ServerSideClient client)
+			public void OnClientDisconnected(object? sender, ServerClientStatusChangedEventArgs e)
 			{
-				clientConnectHandler?.Invoke(new(client.ConnectionInformation, new PluginRemoteAgent(client.ProtocolAgent, targetPluginDomain)));
+				clientConnectHandler?.Invoke(owner, new(new(e.Client.ConnectionInformation, new PluginRemoteAgent(e.Client.ProtocolAgent, targetPluginDomain))));
 			}
 
 			private void NotifyChanged()

@@ -16,7 +16,7 @@ namespace StarComputer.Server.UI.Avalonia
 		{
 			this.server = server;
 
-			server.ListeningStatusChanged += () => Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(IsListening)), DispatcherPriority.Send);
+			server.ListeningStatusChanged += (sender, e) => Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(IsListening)), DispatcherPriority.Send);
 
 			PropertyChanged += (_, e) =>
 			{
@@ -28,7 +28,7 @@ namespace StarComputer.Server.UI.Avalonia
 
 		public bool IsListening => server.IsListening;
 
-		public bool CanStartListen => !IsListening;
+		public bool CanStartListen => server.IsCanStartListen;
 
 		public string ErrorMessage { get => errorMessage; private set => RaiseAndSetIfChanged(ref errorMessage, value); }
 

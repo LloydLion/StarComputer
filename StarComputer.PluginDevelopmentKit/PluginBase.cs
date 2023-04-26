@@ -93,13 +93,13 @@ namespace StarComputer.PluginDevelopmentKit
 
 				//Initial actions
 				if (IfServerSide(out var tserverEnvironment))
-					tserverEnvironment.Server.ClientDisconnected += (client) =>
+					tserverEnvironment.Server.ClientDisconnected += (sender, e) =>
 					{
-						userAssociationTable.TryRemove(client.Agent.UniqueAgentId, out var user);
+						userAssociationTable.TryRemove(e.Client.Agent.UniqueAgentId, out var user);
 						user?.Dispose();
 					};
 				else if (IfClientSide(out var tclientEnviroment))
-					tclientEnviroment.Client.ClientDisconnected += () =>
+					tclientEnviroment.Client.ClientDisconnected += (sender, e) =>
 					{
 						foreach (var item in userAssociationTable.Values)
 							item.Dispose();

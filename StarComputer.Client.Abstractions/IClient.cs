@@ -7,8 +7,10 @@ namespace StarComputer.Client.Abstractions
 	{
 		public bool IsConnected { get; }
 
+		public bool IsTerminated { get; }
 
-		public event Action ConnectionStatusChanged;
+
+		public event EventHandler ConnectionStatusChanged;
 
 
 		public ValueTask TerminateAsync();

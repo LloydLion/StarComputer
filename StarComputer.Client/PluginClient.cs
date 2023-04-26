@@ -17,7 +17,7 @@ namespace StarComputer.Client
 		{
 			this.client = client;
 			this.targetPluginDomain = targetPluginDomain;
-			handler = new(client);
+			handler = new(client, this);
 		}
 
 
@@ -35,38 +35,40 @@ namespace StarComputer.Client
 		}
 
 
-		public event Action? ClientConnected
+		public event EventHandler? ClientConnected
 		{ add => handler.ConnectHandler += value; remove => handler.ConnectHandler -= value; }
 
-		public event Action? ClientDisconnected
+		public event EventHandler? ClientDisconnected
 		{ add => handler.DisconnectHandler += value; remove => handler.DisconnectHandler -= value; }
 
 
 		private class ConnectionHandler
 		{
 			private readonly IClient client;
+			private readonly PluginClient owner;
 
-			private Action? connectHandler;
-			private Action? disconnectHandler;
+			private EventHandler? connectHandler;
+			private EventHandler? disconnectHandler;
 			private bool isAttached = false;
 
 
-			public Action? ConnectHandler { get => connectHandler; set { connectHandler = value; NotifyChanged(); } }
+			public EventHandler? ConnectHandler { get => connectHandler; set { connectHandler = value; NotifyChanged(); } }
 
-			public Action? DisconnectHandler { get => disconnectHandler; set { disconnectHandler = value; NotifyChanged(); } }
+			public EventHandler? DisconnectHandler { get => disconnectHandler; set { disconnectHandler = value; NotifyChanged(); } }
 
 
-			public ConnectionHandler(IClient client)
+			public ConnectionHandler(IClient client, PluginClient owner)
 			{
 				this.client = client;
+				this.owner = owner;
 			}
 
 
-			public void OnConnectionStatusChanged()
+			public void OnConnectionStatusChanged(object? sender, EventArgs e)
 			{
 				if (client.IsConnected)
-					ConnectHandler?.Invoke();
-				else DisconnectHandler?.Invoke();
+					ConnectHandler?.Invoke(owner, EventArgs.Empty);
+				else DisconnectHandler?.Invoke(owner, EventArgs.Empty);
 			}
 
 			private void NotifyChanged()

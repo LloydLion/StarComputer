@@ -10,6 +10,7 @@ using StarComputer.Common.Abstractions.Protocol.Bodies;
 using static StarComputer.Common.Protocol.HttpProtocolHelper;
 using StarComputer.Common.Protocol;
 using StarComputer.Common.Abstractions.Connection;
+using StarComputer.Common.Abstractions;
 
 namespace StarComputer.Server
 {
@@ -46,7 +47,7 @@ namespace StarComputer.Server
 		private readonly TaskCompletionSource closeRequestCoevent = new(false);
 		private readonly AutoResetEvent listenRequestEvent = new(false);
 		private ListenRequest? listenRequest;
-
+		private bool isListening;
 		private readonly Dictionary<Guid, ServerSideClientInternal> clients = new();
 
 
@@ -71,23 +72,34 @@ namespace StarComputer.Server
 		}
 
 
-		public bool IsListening { get; private set; }
+		public bool IsListening
+		{
+			get => isListening;
+			private set
+			{
+				isListening = value;
+				if (value == true) IsCanStartListen = false;
+				ListeningStatusChanged?.Invoke(this, EventArgs.Empty);
+			}
+		}
+
+		public bool IsCanStartListen { get; private set; } = true;
 
 
-		public event Action? ListeningStatusChanged;
+		public event EventHandler? ListeningStatusChanged;
 
-		public event Action<ServerSideClient>? ClientConnected;
+		public event EventHandler<ServerClientStatusChangedEventArgs>? ClientConnected;
 
-		public event Action<ServerSideClient>? ClientDisconnected;
+		public event EventHandler<ServerClientStatusChangedEventArgs>? ClientDisconnected;
 
 
-		public void Close()
+		public ValueTask CloseAsync()
 		{
 			if (IsListening == false)
 				throw new InvalidOperationException("Server is already closed, enable to close server twice");
 
 			closeRequestEvent.Set();
-			closeRequestCoevent.Task.Wait();
+			return new(closeRequestCoevent.Task);
 		}
 
 		public ServerSideClient GetClientByAgent(Guid protocolAgentId)
@@ -129,7 +141,6 @@ namespace StarComputer.Server
 			}
 
 			IsListening = true;
-			ListeningStatusChanged?.Invoke();
 
 			var httpContextAsyncResult = listener.BeginGetContext(null, null);
 
@@ -152,7 +163,6 @@ namespace StarComputer.Server
 						clients.Clear();
 
 						IsListening = false;
-						ListeningStatusChanged?.Invoke();
 					}
 					catch (Exception) { }
 
@@ -164,7 +174,6 @@ namespace StarComputer.Server
 					{
 						listener.Close();
 						IsListening = false;
-						ListeningStatusChanged?.Invoke();
 						closeRequestCoevent.SetResult();
 					}
 					catch (Exception ex)
@@ -207,11 +216,11 @@ namespace StarComputer.Server
 			List<Guid>? clientsToClose = null;
 			foreach (var client in clients)
 			{
-				//if ((DateTime.UtcNow - client.Value.LastHeartbeat).TotalSeconds >= 15)
-				//{
-				//	clientsToClose ??= new();
-				//	clientsToClose.Add(client.Key);
-				//}
+				if ((DateTime.UtcNow - client.Value.LastHeartbeat) >= StaticInformation.DefaultHttpTimeout)
+				{
+					clientsToClose ??= new();
+					clientsToClose.Add(client.Key);
+				}
 			}
 
 			if (clientsToClose is not null)
@@ -224,7 +233,7 @@ namespace StarComputer.Server
 			try
 			{
 				var headers = context.Request.Headers;
-				var typeRaw =  headers[RequestTypeHeader];
+				var typeRaw = headers[RequestTypeHeader];
 				if (typeRaw is null || Enum.TryParse<ServerRequestType>(typeRaw, ignoreCase: true, out var type) == false) throw new BadRequestException($"No {RequestTypeHeader} header in request or it is invalid");
 
 				switch (type)
@@ -267,7 +276,7 @@ namespace StarComputer.Server
 
 			if (password != options.ServerPassword)
 				throw new HttpException(HttpStatusCode.Forbidden, "Invalid server password in connection request");
-				
+
 			var login = headers[ConnectionLoginHeader];
 			var addressRaw = headers[CallbackAddressHeader];
 
@@ -279,7 +288,7 @@ namespace StarComputer.Server
 
 			try
 			{
-				var localClient = new HttpClient();
+				var localClient = new HttpClient() { Timeout = StaticInformation.DefaultHttpTimeout };
 
 				var message = new HttpRequestMessage() { RequestUri = address };
 				message.Headers.Add(RequestTypeHeader, ClientRequestType.Ping.ToString());
@@ -298,7 +307,7 @@ namespace StarComputer.Server
 
 			agent.Start();
 
-			ClientConnected?.Invoke(GetClientByAgent(uniqueClientID));
+			ClientConnected?.Invoke(this, new(GetClientByAgent(uniqueClientID)));
 
 			PasteClientUniqueID(context.Response.Headers, uniqueClientID);
 
@@ -340,7 +349,7 @@ namespace StarComputer.Server
 			if (client is null)
 				throw new NullReferenceException();
 			client.Agent.Disconnect();
-			ClientDisconnected?.Invoke(new ServerSideClient(client.ConnectionInformation, client.Agent));
+			ClientDisconnected?.Invoke(this, new(new ServerSideClient(client.ConnectionInformation, client.Agent)));
 		}
 
 

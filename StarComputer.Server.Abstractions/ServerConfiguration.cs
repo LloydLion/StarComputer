@@ -18,7 +18,7 @@ namespace StarComputer.Server.Abstractions
 		public IPEndPoint Interface { get; set; } = IPEndPoint.Parse("127.0.0.1:" + StaticInformation.OperationPort);
 
 		public Version TargetProtocolVersion { get; set; } = Assembly.GetExecutingAssembly().GetName().Version ?? throw new NullReferenceException();
-
+		
 		public string ServerPassword
 		{
 			get => serverPassword;

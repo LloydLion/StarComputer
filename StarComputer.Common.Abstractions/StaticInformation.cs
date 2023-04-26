@@ -7,6 +7,7 @@ namespace StarComputer.Common.Abstractions
 		public const int OperationPort = 1623;
 		public const string ServerHttpAddressTemplate = "http://{Interface}/starComputerServer/";
 		public const string ClientHttpAddressTemplate = "http://{Interface}/starComputerClient/";
+		public static readonly TimeSpan DefaultHttpTimeout = TimeSpan.FromSeconds(10);
 
 #if DEBUG && !DISABLE_LONG_TIMEOUTS
 		public const int ClientMessageSendTimeout = 30000;

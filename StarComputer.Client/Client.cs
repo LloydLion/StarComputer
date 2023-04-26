@@ -14,6 +14,7 @@ using System.Diagnostics.CodeAnalysis;
 using static StarComputer.Common.Protocol.HttpProtocolHelper;
 using System.Text;
 using System.ComponentModel;
+using StarComputer.Common.Abstractions;
 
 namespace StarComputer.Client
 {
@@ -73,16 +74,20 @@ namespace StarComputer.Client
 			listener = new();
 			callbackUri = options.Value.ConstructClientHttpAddress();
 			listener.Prefixes.Add(callbackUri);
+
+			httpClient.Timeout = StaticInformation.DefaultHttpTimeout;
 		}
 
 
 		public bool IsConnected => CurrentConnection is not null;
 
 		[MemberNotNullWhen(true, nameof(IsConnected))]
-		private Connection? CurrentConnection { get => currentConnection; set { currentConnection = value; ConnectionStatusChanged?.Invoke(); } }
+		private Connection? CurrentConnection { get => currentConnection; set { currentConnection = value; ConnectionStatusChanged?.Invoke(this, EventArgs.Empty); } }
+
+		public bool IsTerminated => isTerminating;
 
 
-		public event Action? ConnectionStatusChanged;
+		public event EventHandler? ConnectionStatusChanged;
 
 
 		public ValueTask TerminateAsync()
@@ -197,8 +202,6 @@ namespace StarComputer.Client
 						{
 							clientCloseTask.Task.SetException(ex);
 						}
-
-						return;
 					}
 					else if (waitResult == ThreadDispatcherStatic.NewTaskIndex)
 					{

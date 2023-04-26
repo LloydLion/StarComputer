@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Threading;
+using Microsoft.CodeAnalysis.FlowAnalysis;
 using Newtonsoft.Json;
 using StarComputer.Common.Abstractions.Threading;
 using System.ComponentModel;
@@ -42,6 +43,7 @@ namespace StarComputer.UI.Avalonia
 			else browser = Dispatcher.UIThread.InvokeAsync(() => new AvaloniaCefBrowser(), DispatcherPriority.Send).Result;
 
 			browser.DownloadHandler = new CustomDownloadHandler();
+			browser.ContextMenuHandler = new CustomContextMenuHandler();
 
 			browser.AddressChanged += (sender, e) =>
 			{
@@ -67,9 +69,13 @@ namespace StarComputer.UI.Avalonia
 			if (browser.Address != url || forceReload)
 			{
 				var loadEvent = new TaskCompletionSource();
+
 				browser.LoadEnd += handle;
+
 				browser.Address = url;
+
 				await loadEvent.Task;
+
 				browser.LoadEnd -= handle;
 
 
@@ -163,6 +169,15 @@ namespace StarComputer.UI.Avalonia
 			protected override void OnDownloadUpdated(CefBrowser browser, CefDownloadItem downloadItem, CefDownloadItemCallback callback)
 			{
 				callback.Resume();
+			}
+		}
+
+		private class CustomContextMenuHandler : ContextMenuHandler
+		{
+			protected override void OnBeforeContextMenu(CefBrowser browser, CefFrame frame, CefContextMenuParams state, CefMenuModel model)
+			{
+				if (state.ContextMenuType == CefContextMenuTypeFlags.Frame || state.ContextMenuType == CefContextMenuTypeFlags.Page)
+					model.Clear();
 			}
 		}
 	}

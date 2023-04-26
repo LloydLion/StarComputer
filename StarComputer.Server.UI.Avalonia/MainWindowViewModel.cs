@@ -27,9 +27,9 @@ namespace StarComputer.Server.UI.Avalonia
 		public ViewModelBase Content { get; private set; }
 
 
-		public void Close()
+		public async void Close()
 		{
-			server.Close();
+			await server.CloseAsync();
 		}
 	}
 }

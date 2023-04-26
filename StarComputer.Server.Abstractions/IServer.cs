@@ -6,17 +6,19 @@ namespace StarComputer.Server.Abstractions
 	{
 		public bool IsListening { get; }
 
+		public bool IsCanStartListen { get; }
 
-		public event Action ListeningStatusChanged;
 
-		public event Action<ServerSideClient> ClientConnected;
+		public event EventHandler ListeningStatusChanged;
 
-		public event Action<ServerSideClient> ClientDisconnected;
+		public event EventHandler<ServerClientStatusChangedEventArgs> ClientConnected;
+
+		public event EventHandler<ServerClientStatusChangedEventArgs> ClientDisconnected;
 
 
 		public ValueTask ListenAsync();
 
-		public void Close();
+		public ValueTask CloseAsync();
 
 		public IEnumerable<ServerSideClient> ListClients();
 
