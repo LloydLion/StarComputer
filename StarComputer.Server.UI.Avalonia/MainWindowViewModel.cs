@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using StarComputer.Common.Abstractions.Plugins;
-using StarComputer.Common.Abstractions.Threading;
 using StarComputer.Server.Abstractions;
 using StarComputer.UI.Avalonia;
 using System;
@@ -12,15 +11,17 @@ namespace StarComputer.Server.UI.Avalonia
 		private readonly IServer server;
 
 
-		public MainWindowViewModel(IServiceProvider services)
+		public MainWindowViewModel(MainWindow owner, IServiceProvider services)
 		{
-			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>());
-			var connectionViewModel = new ListenViewModel(services.GetRequiredService<IServer>());
-			var pluginSelectorViewModel = new PluginSelectorViewModel(browserViewModel, services.GetRequiredService<IPluginStore>());
-
 			server = services.GetRequiredService<IServer>();
 
-			Content = new ServerViewModel(browserViewModel, connectionViewModel, pluginSelectorViewModel);
+			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>());
+			var serverControlViewModel = new ServerControlViewModel(server, owner);
+			var pluginSelectorViewModel = new PluginSelectorViewModel(browserViewModel, services.GetRequiredService<IPluginStore>());
+			var serverStatusBarViewModel = new ServerStatusBarViewModel(server);
+
+
+			Content = new ServerViewModel(browserViewModel, serverControlViewModel, pluginSelectorViewModel, serverStatusBarViewModel);
 		}
 
 

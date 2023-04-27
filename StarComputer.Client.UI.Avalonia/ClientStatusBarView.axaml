@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="25"
+			 MinHeight="25"
+			 x:Class="StarComputer.Client.UI.Avalonia.ClientStatusBarView"
+			 Background="LightGray">
+	<Grid>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="*"/>
+		</Grid.ColumnDefinitions>
+
+		<StackPanel Orientation="Horizontal" Grid.Column="0" Margin="10 0 0 0" Spacing="5">
+			<Ellipse x:Name="blub" Fill="Blue" Height="15" Width="15" VerticalAlignment="Center"/>
+			<Label IsVisible="{Binding IsConnected}" Content="{Binding ConnectionConfiguration.EndPoint, TargetNullValue=NORENDER, StringFormat=Connected to {0}}" Foreground="Black" VerticalAlignment="Center"/>
+			<Label IsVisible="{Binding IsNotConnected}" Content="No connection" Foreground="Black" VerticalAlignment="Center"/>
+		</StackPanel>
+		
+		<StackPanel VerticalAlignment="Center" Orientation="Horizontal" Grid.Column="1">
+			<Label Content="{Binding Configuration.Interface, StringFormat=Using {0} interface}" Foreground="Black"/>
+		</StackPanel>
+
+		<StackPanel VerticalAlignment="Center" IsVisible="{Binding IsConnected}" Orientation="Horizontal" Grid.Column="2">
+			<Label Content="Logged as" Foreground="Black"/>
+			<Label Content="{Binding ConnectionConfiguration.Login, TargetNullValue=NORENDER}" Foreground="Black" FontWeight="Bold"/>
+		</StackPanel>
+	</Grid>
+</UserControl>

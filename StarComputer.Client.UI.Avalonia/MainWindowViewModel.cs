@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Options;
 using StarComputer.Client.Abstractions;
 using StarComputer.Common.Abstractions.Plugins;
-using StarComputer.Common.Abstractions.Threading;
 using StarComputer.UI.Avalonia;
 using System;
 
@@ -13,15 +12,18 @@ namespace StarComputer.Client.UI.Avalonia
 		private readonly IClient client;
 
 
-		public MainWindowViewModel(IServiceProvider services)
+		public MainWindowViewModel(MainWindow window, IServiceProvider services)
 		{
-			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>());
-			var connectionViewModel = new ConnectionViewModel(services.GetRequiredService<IClient>(), services.GetRequiredService<IOptions<ConnectionViewModel.Options>>());
-			var pluginSelectorViewModel = new PluginSelectorViewModel(browserViewModel, services.GetRequiredService<IPluginStore>());
-
 			client = services.GetRequiredService<IClient>();
 
-			Content = new ClientViewModel(browserViewModel, connectionViewModel, pluginSelectorViewModel);
+			var connectionDialogViewModel = new ConnectionDialogViewModel(services.GetRequiredService<IOptions<ConnectionDialogViewModel.Options>>());
+			var clientConnectionMenuViewModel = new ClientConnectionMenuViewModel(client, window, connectionDialogViewModel);
+
+			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>());
+			var pluginSelectorViewModel = new PluginSelectorViewModel(browserViewModel, services.GetRequiredService<IPluginStore>());
+			var clientStatusBarViewModel = new ClientStatusBarViewModel(client);
+
+			Content = new ClientViewModel(window, browserViewModel, clientConnectionMenuViewModel, pluginSelectorViewModel, clientStatusBarViewModel, client);
 		}
 
 

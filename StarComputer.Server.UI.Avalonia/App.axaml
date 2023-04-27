@@ -3,5 +3,8 @@
              x:Class="StarComputer.Server.UI.Avalonia.App">
     <Application.Styles>
         <FluentTheme Mode="Light"/>
+		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/Button.axaml"/>
+		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/TextBox.axaml"/>
+		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/ComboBox.axaml"/>
     </Application.Styles>
 </Application>

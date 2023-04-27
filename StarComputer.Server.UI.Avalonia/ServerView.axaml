@@ -1,25 +1,36 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-						 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-						 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-						 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+			 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+			 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+			 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="using:StarComputer.Server.UI.Avalonia"
              xmlns:ui="using:StarComputer.UI.Avalonia"
-						 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
-						 x:Class="StarComputer.Server.UI.Avalonia.ServerView">
-	<Grid>
-		<Grid.ColumnDefinitions>
-			<ColumnDefinition MaxWidth="300"/>
-			<ColumnDefinition Width="*"/>
-		</Grid.ColumnDefinitions>
-		<Grid.RowDefinitions>
-			<RowDefinition/>
-		</Grid.RowDefinitions>
-    
-    <local:ListenView DataContext="{Binding Listen}"/>
+			 mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+			 x:Class="StarComputer.Server.UI.Avalonia.ServerView">
+	<DockPanel>
+		<Menu DockPanel.Dock="Top">
+			<MenuItem Header="Window">
+				<MenuItem Header="Server status control" x:Name="serverStatusControlMenuItem" IsEnabled="False"/>
+			</MenuItem>
+		</Menu>
+		
+		<Grid x:Name="mainFrame">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="auto" MaxWidth="300"/>
+				<ColumnDefinition Width="*"/>
+			</Grid.ColumnDefinitions>
+			<Grid.RowDefinitions>
+				<RowDefinition/>
+				<RowDefinition Height="auto"/>
+			</Grid.RowDefinitions>
 
-    <DockPanel Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsListening}">
-      <ui:PluginSelectorView DataContext="{Binding PluginSelector}" DockPanel.Dock="Top"/>
-      <ui:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
-    </DockPanel>
-	</Grid>
+			<local:ServerControlView x:Name="serverControlView" DataContext="{Binding ServerControl}"/>
+
+			<DockPanel Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsListening}">
+				<ui:PluginSelectorView DataContext="{Binding PluginSelector}" DockPanel.Dock="Top"/>
+				<ui:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+			</DockPanel>
+		
+			<local:ServerStatusBarView Grid.Row="1" Grid.ColumnSpan="2" DataContext="{Binding StatusBar}"/>
+		</Grid>
+	</DockPanel>
 </UserControl>

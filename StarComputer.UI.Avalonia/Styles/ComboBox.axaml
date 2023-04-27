@@ -1,0 +1,40 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Design.PreviewWith>
+        <Border Padding="20">
+			<ComboBox Margin="50" Width="100">
+				<ComboBox.Items>
+					<x:String>
+						ITEMS
+					</x:String>
+				</ComboBox.Items>
+			</ComboBox>
+        </Border>
+    </Design.PreviewWith>
+
+	<Style Selector="ComboBox">
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="Background" Value="AliceBlue"/>
+	</Style>
+	
+	<Style Selector="ComboBoxItem">
+		<Setter Property="BorderThickness" Value="1"/>
+		<Setter Property="Background" Value="AliceBlue"/>
+	</Style>
+
+	<Style Selector="ComboBox:pointerover /template/ Border">
+		<Setter Property="Background" Value="AliceBlue"/>
+	</Style>
+
+	<Style Selector="ComboBox:disabled /template/ Border">
+		<Setter Property="Background" Value="Azure"/>
+	</Style>
+
+	<Style Selector="ComboBox:focus /template/ Border">
+		<Setter Property="Background" Value="Aquamarine"/>
+	</Style>
+
+	<Style Selector="ComboBoxItem:pointerover /template/ ContentPresenter">
+		<Setter Property="Background" Value="Aquamarine"/>
+	</Style>
+</Styles>

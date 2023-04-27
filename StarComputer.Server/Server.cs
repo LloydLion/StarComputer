@@ -93,6 +93,11 @@ namespace StarComputer.Server
 		public event EventHandler<ServerClientStatusChangedEventArgs>? ClientDisconnected;
 
 
+		public ServerConfiguration GetConfiguration()
+		{
+			return options;
+		}
+
 		public ValueTask CloseAsync()
 		{
 			if (IsListening == false)

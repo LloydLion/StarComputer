@@ -6,7 +6,9 @@
         x:Class="StarComputer.Client.UI.Avalonia.MainWindow"
         Title="StarComputer.Client.UI.Avalonia"
         Content="{Binding Content}">
-  <Grid>
-    
-  </Grid>
+	<Window.Styles>
+		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/Button.axaml"/>
+		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/TextBox.axaml"/>
+		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/ComboBox.axaml"/>
+	</Window.Styles>
 </Window>

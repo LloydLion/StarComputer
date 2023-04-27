@@ -1,33 +1,40 @@
-﻿using StarComputer.UI.Avalonia;
+﻿using StarComputer.Client.Abstractions;
+using StarComputer.UI.Avalonia;
+using Avalonia.Threading;
+using Avalonia.Controls;
 
 namespace StarComputer.Client.UI.Avalonia
 {
 	public class ClientViewModel : ViewModelBase
 	{
-		public ClientViewModel(BrowserViewModel browser, ConnectionViewModel connection, PluginSelectorViewModel pluginSelector)
+		private readonly IClient client;
+
+
+		public ClientViewModel(Window owner, BrowserViewModel browser, ClientConnectionMenuViewModel connectionMenu, PluginSelectorViewModel pluginSelector, ClientStatusBarViewModel statusBar, IClient client)
 		{
 			Browser = browser;
-			Connection = connection;
+			ConnectionMenu = connectionMenu;
 			PluginSelector = pluginSelector;
+			StatusBar = statusBar;
+			this.client = client;
 
-			Connection.PropertyChanged += (sender, e) =>
+			client.ConnectionStatusChanged += (_, _) => Dispatcher.UIThread.Post(() =>
 			{
-				if (e.PropertyName == nameof(ConnectionViewModel.IsConnected))
-				{
-					pluginSelector.SwitchPlugin(null);
-					RaisePropertyChanged(nameof(IsConnected));
-				}
-			};
+				pluginSelector.SwitchPlugin(null);
+				RaisePropertyChanged(nameof(IsConnected));
+			}, DispatcherPriority.Send);
 		}
 
 
-		public bool IsConnected => Connection.IsConnected;
+		public bool IsConnected => client.IsConnected;
 
 
 		public BrowserViewModel Browser { get; }
 
-		public ConnectionViewModel Connection { get; }
+		public ClientConnectionMenuViewModel ConnectionMenu { get; }
 
 		public PluginSelectorViewModel PluginSelector { get; }
+
+		public ClientStatusBarViewModel StatusBar { get; }
 	}
 }

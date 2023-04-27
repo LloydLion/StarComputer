@@ -23,6 +23,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="ClientStatusBarView.axaml.cs">
+      <DependentUpon>ClientStatusBarView.axaml</DependentUpon>
+    </Compile>
+    <Compile Update="ConnectionDialogView.axaml.cs">
+      <DependentUpon>ConnectionDialogView.axaml</DependentUpon>
+    </Compile>
     <Compile Update="ConnectionView.axaml.cs">
       <DependentUpon>%(Filename)</DependentUpon>
     </Compile>

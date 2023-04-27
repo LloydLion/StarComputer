@@ -64,7 +64,7 @@ namespace StarComputer.Client.UI.Avalonia
 				{
 					s.PluginDirectories = config.GetSection("PluginLoading:Reflection").GetValue<string>("PluginDirectories")!;
 				})
-				.Configure<ConnectionViewModel.Options>(s =>
+				.Configure<ConnectionDialogViewModel.Options>(s =>
 				{
 					var configSection = config.GetSection("Connection");
 					s.IsConnectionDataLocked = configSection.GetValue<bool>("Locked");

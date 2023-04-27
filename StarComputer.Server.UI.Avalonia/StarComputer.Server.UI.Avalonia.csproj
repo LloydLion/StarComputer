@@ -26,6 +26,9 @@
     <Compile Update="App.axaml.cs">
       <DependentUpon>%(Filename)</DependentUpon>
     </Compile>
+    <Compile Update="ServerControlView.axaml.cs">
+      <DependentUpon>ServerControlView.axaml</DependentUpon>
+    </Compile>
     <Compile Update="ServerView.axaml.cs">
       <DependentUpon>ServerView.axaml</DependentUpon>
     </Compile>

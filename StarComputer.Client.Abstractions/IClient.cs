@@ -23,6 +23,8 @@ namespace StarComputer.Client.Abstractions
 
 		public ConnectionConfiguration GetConnectionConfiguration();
 
+		public ClientConfiguration GetConfiguration();
+
 		public void MainLoop(IPluginStore plugins);
 	}
 }

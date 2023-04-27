@@ -1,0 +1,43 @@
+﻿<Styles xmlns="https://github.com/avaloniaui"
+		xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+	<Design.PreviewWith>
+		<Border Padding="20">
+			<StackPanel Spacing="20">
+				<Button Content="Hello world" FontSize="30"/>
+				<Button IsEnabled="False" Content="Hello world" FontSize="30"/>
+				<Button Classes="priority" Content="Hello world" FontSize="30"/>
+			</StackPanel>
+		</Border>
+	</Design.PreviewWith>
+
+	<Style Selector="Button">
+		<Setter Property="Foreground" Value="Black"/>
+		<Setter Property="Background" Value="AliceBlue"/>
+		<Setter Property="CornerRadius" Value="10"/>
+		<Setter Property="BorderBrush" Value="Aquamarine"/>
+		<Setter Property="BorderThickness" Value="1"/>
+	</Style>
+	
+	<Style Selector="Button:pointerover /template/ ContentPresenter">
+		<Setter Property="Background" Value="Aquamarine"/>
+	</Style>
+	
+	
+	<Style Selector="Button.priority">
+		<Setter Property="Background" Value="LightBlue"/>
+		<Setter Property="BorderBrush" Value="Black"/>
+	</Style>
+	
+	<Style Selector="Button.priority:pointerover /template/ ContentPresenter">
+		<Setter Property="Background" Value="Aquamarine"/>
+	</Style>
+
+	
+	<Style Selector="Button:disabled /template/ ContentPresenter">
+		<Setter Property="Background" Value="Azure"/>
+	</Style>
+
+	<Style Selector="Button:pressed /template/ ContentPresenter">
+		<Setter Property="Background" Value="LightBlue"/>
+	</Style>
+</Styles>

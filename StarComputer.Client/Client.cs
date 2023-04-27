@@ -90,6 +90,11 @@ namespace StarComputer.Client
 		public event EventHandler? ConnectionStatusChanged;
 
 
+		public ClientConfiguration GetConfiguration()
+		{
+			return options;
+		}
+
 		public ValueTask TerminateAsync()
 		{
 			isTerminating = true;

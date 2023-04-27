@@ -24,6 +24,8 @@ namespace StarComputer.Server.Abstractions
 
 		public ServerSideClient GetClientByAgent(Guid protocolAgentId);
 
+		public ServerConfiguration GetConfiguration();
+
 		public void MainLoop(IPluginStore plugins);
 	}
 }

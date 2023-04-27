@@ -31,6 +31,9 @@
       <SubType>Code</SubType>
       <DependentUpon>%(Filename)</DependentUpon>
     </Compile>
+    <Compile Update="ErrorDialogView.axaml.cs">
+      <DependentUpon>ErrorDialogView.axaml</DependentUpon>
+    </Compile>
     <Compile Update="PluginSelectorView.axaml.cs">
       <SubType>Code</SubType>
       <DependentUpon>%(Filename)</DependentUpon>

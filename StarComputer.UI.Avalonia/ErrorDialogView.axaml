@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="350"
+		Height="350" Width="550" CanResize="False"
+        x:Class="StarComputer.UI.Avalonia.ErrorDialogView"
+        Title="ErrorDialogViewModel">
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="250"/>
+			<RowDefinition Height="100"/>
+		</Grid.RowDefinitions>
+		
+		<StackPanel Grid.Row="0" Margin="20">
+			<Label Content="Operation finished with fatal error!" FontWeight="Black" FontSize="20"/>
+			<Label Content="Error message:" Foreground="Red" FontWeight="Black" FontSize="15"/>
+			<TextBlock x:Name="errorMessageBlock" TextWrapping="Wrap" Foreground="Red" MaxLines="9"/>
+		</StackPanel>
+		
+		<StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Bottom" Spacing="20" Margin="20">
+			<Button x:Name="copyButton" Content="Copy to clipboard"/>
+			<Button x:Name="closeButton" Content="Continue"/>
+		</StackPanel>
+	</Grid>
+</Window>

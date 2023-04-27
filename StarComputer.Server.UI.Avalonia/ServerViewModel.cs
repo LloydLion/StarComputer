@@ -4,15 +4,16 @@ namespace StarComputer.Server.UI.Avalonia
 {
 	public class ServerViewModel : ViewModelBase
 	{
-		public ServerViewModel(BrowserViewModel browser, ListenViewModel listen, PluginSelectorViewModel pluginSelector)
+		public ServerViewModel(BrowserViewModel browser, ServerControlViewModel serverControl, PluginSelectorViewModel pluginSelector, ServerStatusBarViewModel statusBar)
 		{
 			Browser = browser;
-			Listen = listen;
+			ServerControl = serverControl;
 			PluginSelector = pluginSelector;
+			StatusBar = statusBar;
 
-			Listen.PropertyChanged += (sender, e) =>
+			ServerControl.PropertyChanged += (sender, e) =>
 			{
-				if (e.PropertyName == nameof(ListenViewModel.IsListening))
+				if (e.PropertyName == nameof(ServerControlViewModel.IsListening))
 				{
 					pluginSelector.SwitchPlugin(null);
 					RaisePropertyChanged(nameof(IsListening));
@@ -21,13 +22,15 @@ namespace StarComputer.Server.UI.Avalonia
 		}
 
 
-		public bool IsListening => Listen.IsListening;
+		public bool IsListening => ServerControl.IsListening;
 
 
 		public BrowserViewModel Browser { get; }
 
-		public ListenViewModel Listen { get; }
+		public ServerControlViewModel ServerControl { get; }
 
 		public PluginSelectorViewModel PluginSelector { get; }
+
+		public ServerStatusBarViewModel StatusBar { get; }
 	}
 }
