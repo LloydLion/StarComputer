@@ -10,17 +10,15 @@ namespace StarComputer.Client.UI.Avalonia
 		private readonly IClient client;
 
 
-		public ClientViewModel(Window owner, BrowserViewModel browser, ClientConnectionMenuViewModel connectionMenu, PluginSelectorViewModel pluginSelector, ClientStatusBarViewModel statusBar, IClient client)
+		public ClientViewModel(Window owner, BrowserViewModel browser, ClientConnectionMenuViewModel connectionMenu, ClientStatusBarViewModel statusBar, IClient client)
 		{
 			Browser = browser;
 			ConnectionMenu = connectionMenu;
-			PluginSelector = pluginSelector;
 			StatusBar = statusBar;
 			this.client = client;
 
 			client.ConnectionStatusChanged += (_, _) => Dispatcher.UIThread.Post(() =>
 			{
-				pluginSelector.SwitchPlugin(null);
 				RaisePropertyChanged(nameof(IsConnected));
 			}, DispatcherPriority.Send);
 		}
@@ -32,8 +30,6 @@ namespace StarComputer.Client.UI.Avalonia
 		public BrowserViewModel Browser { get; }
 
 		public ClientConnectionMenuViewModel ConnectionMenu { get; }
-
-		public PluginSelectorViewModel PluginSelector { get; }
 
 		public ClientStatusBarViewModel StatusBar { get; }
 	}

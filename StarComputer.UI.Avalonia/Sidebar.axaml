@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="using:StarComputer.UI.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="150" d:DesignHeight="450"
+             x:Class="StarComputer.UI.Avalonia.Sidebar">
+	<Grid x:Name="mainGrid">
+		<Rectangle x:Name="resizeBar" Fill="Gray" PointerMoved="OnPointerMoved"/>
+		<DockPanel x:Name="mainDock">
+			<Button IsVisible="{Binding ShowCloseButton}" DockPanel.Dock="Top" Width="15" Height="15"
+				Background="AntiqueWhite" Margin="3" CornerRadius="4" HorizontalAlignment="Right"/>
+			
+			<Decorator x:Name="content"/>
+		</DockPanel>
+	</Grid>
+</UserControl>

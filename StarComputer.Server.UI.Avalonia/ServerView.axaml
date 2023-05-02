@@ -26,7 +26,6 @@
 			<local:ServerControlView x:Name="serverControlView" DataContext="{Binding ServerControl}"/>
 
 			<DockPanel Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsListening}">
-				<ui:PluginSelectorView DataContext="{Binding PluginSelector}" DockPanel.Dock="Top"/>
 				<ui:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 			</DockPanel>
 		

@@ -15,13 +15,12 @@ namespace StarComputer.Server.UI.Avalonia
 		{
 			server = services.GetRequiredService<IServer>();
 
-			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>());
+			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>(), services.GetRequiredService<IPluginStore>());
 			var serverControlViewModel = new ServerControlViewModel(server, owner);
-			var pluginSelectorViewModel = new PluginSelectorViewModel(browserViewModel, services.GetRequiredService<IPluginStore>());
 			var serverStatusBarViewModel = new ServerStatusBarViewModel(server);
 
 
-			Content = new ServerViewModel(browserViewModel, serverControlViewModel, pluginSelectorViewModel, serverStatusBarViewModel);
+			Content = new ServerViewModel(browserViewModel, serverControlViewModel, serverStatusBarViewModel);
 		}
 
 

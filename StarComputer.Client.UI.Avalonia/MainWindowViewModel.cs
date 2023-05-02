@@ -19,11 +19,10 @@ namespace StarComputer.Client.UI.Avalonia
 			var connectionDialogViewModel = new ConnectionDialogViewModel(services.GetRequiredService<IOptions<ConnectionDialogViewModel.Options>>());
 			var clientConnectionMenuViewModel = new ClientConnectionMenuViewModel(client, window, connectionDialogViewModel);
 
-			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>());
-			var pluginSelectorViewModel = new PluginSelectorViewModel(browserViewModel, services.GetRequiredService<IPluginStore>());
+			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>(), services.GetRequiredService<IPluginStore>());
 			var clientStatusBarViewModel = new ClientStatusBarViewModel(client);
 
-			Content = new ClientViewModel(window, browserViewModel, clientConnectionMenuViewModel, pluginSelectorViewModel, clientStatusBarViewModel, client);
+			Content = new ClientViewModel(window, browserViewModel, clientConnectionMenuViewModel, clientStatusBarViewModel, client);
 		}
 
 

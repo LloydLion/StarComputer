@@ -4,13 +4,13 @@ using StarComputer.PluginDevelopmentKit;
 
 namespace HelloPlugin
 {
-	[Plugin("Hello")]
-	public class HelloPlugin : PluginBase
+	[Plugin("Hello3")]
+	public class HelloPlugin3 : PluginBase
 	{
 		private readonly IHTMLUIContext ui;
 
 
-		public HelloPlugin(IProtocolEnvironment environment, IHTMLUIContext ui) : base(environment)
+		public HelloPlugin3(IProtocolEnvironment environment, IHTMLUIContext ui) : base(environment)
 		{
 			this.ui = ui;
 		}

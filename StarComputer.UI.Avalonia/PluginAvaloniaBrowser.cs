@@ -22,6 +22,7 @@ namespace StarComputer.UI.Avalonia
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 		private string? currentUrl;
 		private bool isInitialized = false;
+		private Decorator? currentDecorator;
 
 
 		public event PropertyChangedEventHandler? PropertyChanged;
@@ -61,7 +62,13 @@ namespace StarComputer.UI.Avalonia
 
 		public void UseDecorator(Decorator decorator)
 		{
+			if (currentDecorator is not null)
+				currentDecorator.Child = null;
+
+			decorator.Child = null;
 			decorator.Child = browser;
+
+			currentDecorator = decorator;
 		}
 
 		public async Task NavigateAsync(string? url, bool forceReload = false)

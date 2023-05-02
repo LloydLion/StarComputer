@@ -6,7 +6,83 @@
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              Background="Red"
              x:Class="StarComputer.UI.Avalonia.BrowserView">
-  <Grid x:Name="frame">
-    
-  </Grid>
+	<UserControl.Styles>
+		<Style Selector="ListBox#tabs /template/ VirtualizingStackPanel">
+			<Setter Property="Orientation" Value="Horizontal"/>
+		</Style>
+	</UserControl.Styles>
+	
+    <Grid x:Name="mainGrid">
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="auto" MaxWidth="500"/>
+			<ColumnDefinition Width="auto"/>
+			<ColumnDefinition Width="*"/>
+			<ColumnDefinition Width="auto"/>
+			<ColumnDefinition Width="auto" MaxWidth="500"/>
+		</Grid.ColumnDefinitions>
+
+		<Grid x:Name="browserPool"/>
+		
+		<GridSplitter Grid.Column="1" ResizeDirection="Columns" Background="Gray" Width="3"
+					  IsVisible="{Binding LeftSidebarActivePlugin, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+		<DockPanel Grid.Column="0" MinWidth="100" IsVisible="{Binding LeftSidebarActivePlugin, Converter={x:Static ObjectConverters.IsNotNull}}">
+			<Button DockPanel.Dock="Top" Width="15" Height="15" Background="AntiqueWhite"
+					Margin="3" CornerRadius="4" HorizontalAlignment="Right" Click="CloseLeftSidebar"/>
+			<Decorator x:Name="leftSidebarFrame"/>
+		</DockPanel>
+		
+		<GridSplitter Grid.Column="3" ResizeDirection="Columns" Background="Gray" Width="3"
+					  IsVisible="{Binding RightSidebarActivePlugin, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+		<DockPanel Grid.Column="4" MinWidth="100" IsVisible="{Binding RightSidebarActivePlugin, Converter={x:Static ObjectConverters.IsNotNull}}">
+			<Button DockPanel.Dock="Top" Width="15" Height="15" Background="AntiqueWhite"
+				Margin="3" CornerRadius="4" HorizontalAlignment="Left" Click="CloseRightSidebar"/>
+			<Decorator x:Name="rightSidebarFrame"/>
+		</DockPanel>
+
+		<Grid Grid.Column="2" x:Name="innerGrid">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="auto"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="auto"/>
+				<RowDefinition Height="auto"/>
+			</Grid.RowDefinitions>
+
+			<Grid Grid.Row="0" Height="30" Background="AntiqueWhite">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="auto"/>
+				</Grid.ColumnDefinitions>
+
+				<Menu Grid.Column="1" Padding="4">
+					<MenuItem Header="+" Background="AliceBlue" CornerRadius="20" Foreground="Black" FontWeight="Black" x:Name="addMenu"/>
+					<MenuItem Header="DEV" Background="AliceBlue" CornerRadius="20" Foreground="Black" FontWeight="Black" x:Name="devButton"/>
+				</Menu>
+
+				<ListBox Grid.Column="0" Background="{x:Null}" x:Name="tabs" Items="{Binding Tabs}" SelectionMode="Single">
+					<ListBox.ItemTemplate>
+						<DataTemplate>
+							<Panel PointerPressed="OnPointerPressed">
+								<TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14"/>
+								<FlyoutBase.AttachedFlyout>
+									<MenuFlyout>
+										<MenuItem Header="Close" Command="{Binding CloseCommand}" CommandParameter="{Binding}"/>
+										<MenuItem Header="Open in right sidebar" Command="{Binding OpenInRightSidebarCommand}" CommandParameter="{Binding}"/>
+										<MenuItem Header="Open in left sidebar" Command="{Binding OpenInLeftSidebarCommand}" CommandParameter="{Binding}"/>
+										<MenuItem Header="Combine" Command="{Binding CombineCommand}" CommandParameter="{Binding}"/>
+									</MenuFlyout>
+								</FlyoutBase.AttachedFlyout>
+							</Panel>
+						</DataTemplate>
+					</ListBox.ItemTemplate>
+				</ListBox>
+			</Grid>
+			
+			<Decorator Grid.Row="1" x:Name="mainFrame"/>
+			
+			<GridSplitter Grid.Row="2" ResizeDirection="Rows" Height="3" Background="Gray"
+						  IsVisible="{Binding ActiveTab.SecondWindowPlugin, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+			<Decorator Grid.Row="3" x:Name="secondFrame" MinHeight="170"
+					   IsVisible="{Binding ActiveTab.SecondWindowPlugin, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+		</Grid>
+    </Grid>
 </UserControl>

@@ -21,7 +21,6 @@
 			</Grid.RowDefinitions>
 
 			<DockPanel Grid.Column="1" Grid.Row="0" IsEnabled="{Binding IsConnected}">
-				<ui:PluginSelectorView DataContext="{Binding PluginSelector}" DockPanel.Dock="Top"/>
 				<ui:BrowserView DataContext="{Binding Browser}"  Margin="20" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
 			</DockPanel>
 		
