@@ -1,5 +1,5 @@
 ﻿using Avalonia.Threading;
-using StarComputer.Client.Abstractions;
+using Microsoft.Extensions.Localization;
 using StarComputer.Server.Abstractions;
 using StarComputer.UI.Avalonia;
 using System;
@@ -11,10 +11,12 @@ namespace StarComputer.Server.UI.Avalonia
 		private readonly IServer server;
 
 
-		public ServerStatusBarViewModel(IServer server)
+		public ServerStatusBarViewModel(IServer server, IStringLocalizer<ServerStatusBarView> localizer)
 		{
 			this.server = server;
 			server.ListeningStatusChanged += OnServerListeningStatusChanged;
+
+			Localization = new LocalizationModel(localizer);
 		}
 
 
@@ -24,6 +26,8 @@ namespace StarComputer.Server.UI.Avalonia
 
 		public ServerConfiguration Configuration => server.GetConfiguration();
 
+		public LocalizationModel Localization { get; }
+
 
 		private void OnServerListeningStatusChanged(object? sender, EventArgs e)
 		{
@@ -32,6 +36,22 @@ namespace StarComputer.Server.UI.Avalonia
 				RaisePropertyChanged(nameof(IsListening));
 				RaisePropertyChanged(nameof(IsNotListening));
 			}, DispatcherPriority.Send);
+		}
+
+		public class LocalizationModel
+		{
+			private readonly IStringLocalizer localizer;
+
+
+			public LocalizationModel(IStringLocalizer localizer)
+			{
+				this.localizer = localizer;
+			}
+
+
+			public string ServerClosedLabel => localizer[nameof(ServerClosedLabel)];
+
+			public string ServerListeningOn => localizer[nameof(ServerListeningOn)];
 		}
 	}
 }

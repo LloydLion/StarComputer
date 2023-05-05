@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Threading;
+using Microsoft.Extensions.Localization;
 using StarComputer.Server.Abstractions;
 using StarComputer.UI.Avalonia;
 using System;
@@ -15,7 +16,7 @@ namespace StarComputer.Server.UI.Avalonia
 		private readonly Window owner;
 
 
-		public ServerControlViewModel(IServer server, Window owner)
+		public ServerControlViewModel(IServer server, Window owner, IStringLocalizer<ServerControlView> localizer)
 		{
 			this.server = server;
 			this.owner = owner;
@@ -29,6 +30,8 @@ namespace StarComputer.Server.UI.Avalonia
 				if (e.PropertyName == nameof(IsListening))
 					RaisePropertyChanged(nameof(CanStartListen));
 			};
+
+			Localization = new LocalizationModel(localizer);
 		}
 
 
@@ -37,6 +40,8 @@ namespace StarComputer.Server.UI.Avalonia
 		public bool CanStartListen => server.IsCanStartListen;
 
 		public ObservableCollection<ServerClientUIDTO> Clients { get; } = new();
+
+		public LocalizationModel Localization { get; }
 
 
 		public async ValueTask ListenAsync()
@@ -53,5 +58,19 @@ namespace StarComputer.Server.UI.Avalonia
 
 
 		public record ServerClientUIDTO(string Login, string Endpoint);
+
+		public class LocalizationModel
+		{
+			private readonly IStringLocalizer localizer;
+
+
+			public LocalizationModel(IStringLocalizer localizer)
+			{
+				this.localizer = localizer;
+			}
+
+
+			public string StartListeningButton => localizer[nameof(StartListeningButton)];
+		}
 	}
 }

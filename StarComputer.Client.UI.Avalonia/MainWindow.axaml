@@ -4,11 +4,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="StarComputer.Client.UI.Avalonia.MainWindow"
-        Title="StarComputer.Client.UI.Avalonia"
+        Title="StarComputer client"
         Content="{Binding Content}">
-	<Window.Styles>
-		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/Button.axaml"/>
-		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/TextBox.axaml"/>
-		<StyleInclude Source="avares://StarComputer.UI.Avalonia/Styles/ComboBox.axaml"/>
-	</Window.Styles>
 </Window>

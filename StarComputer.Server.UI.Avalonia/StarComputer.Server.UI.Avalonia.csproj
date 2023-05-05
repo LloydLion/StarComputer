@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Remove=".gitignore" />
+    <None Remove="ServerControlView.axaml.cs~RFa22a772.TMP" />
   </ItemGroup>
 
   <ItemGroup>

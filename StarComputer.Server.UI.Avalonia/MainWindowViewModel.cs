@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Localization;
+using StarComputer.ApplicationUtils.Localization;
 using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Server.Abstractions;
 using StarComputer.UI.Avalonia;
@@ -15,12 +17,15 @@ namespace StarComputer.Server.UI.Avalonia
 		{
 			server = services.GetRequiredService<IServer>();
 
-			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>(), services.GetRequiredService<IPluginStore>());
-			var serverControlViewModel = new ServerControlViewModel(server, owner);
-			var serverStatusBarViewModel = new ServerStatusBarViewModel(server);
+			var localizationFactory = services.GetRequiredService<IStringLocalizerFactory>();
 
+			var browserViewModel = new BrowserViewModel(services.GetRequiredService<IBrowserCollection>(), services.GetRequiredService<IPluginStore>(), localizationFactory.Create<BrowserView>());
+			var serverControlViewModel = new ServerControlViewModel(server, owner, localizationFactory.Create<ServerControlView>());
+			var serverStatusBarViewModel = new ServerStatusBarViewModel(server, localizationFactory.Create<ServerStatusBarView>());
 
-			Content = new ServerViewModel(browserViewModel, serverControlViewModel, serverStatusBarViewModel);
+			ErrorDialogView.LocalizeWith(localizationFactory.Create<ErrorDialogView>());
+
+			Content = new ServerViewModel(browserViewModel, serverControlViewModel, serverStatusBarViewModel, localizationFactory.Create<ServerView>());
 		}
 
 

@@ -4,6 +4,7 @@ using StarComputer.UI.Avalonia;
 using System.Threading.Tasks;
 using System;
 using Avalonia.Controls;
+using Microsoft.Extensions.Localization;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -14,16 +15,20 @@ namespace StarComputer.Client.UI.Avalonia
 		private readonly IClient client;
 
 
-		public ClientConnectionMenuViewModel(IClient client, Window owner, ConnectionDialogViewModel connectionDialogViewModel)
+		public ClientConnectionMenuViewModel(IClient client, Window owner, ConnectionDialogViewModel connectionDialogViewModel, IStringLocalizer<ClientConnectionMenuView> localizer)
 		{
 			this.client = client;
 			this.owner = owner;
 			this.connectionDialogViewModel = connectionDialogViewModel;
 			client.ConnectionStatusChanged += (_, _) => Dispatcher.UIThread.Post(() => RaisePropertyChanged(nameof(IsConnected)), DispatcherPriority.Send);
+
+			Localization = new LocalizationModel(localizer);
 		}
 
 
 		public bool IsConnected => client.IsConnected;
+
+		public LocalizationModel Localization { get; }
 
 
 		public async ValueTask TryConnectToNewServerAsync()
@@ -59,6 +64,25 @@ namespace StarComputer.Client.UI.Avalonia
 			{
 				await ErrorDialogView.ShowAsync(ex.ToString(), owner);
 			}
+		}
+
+
+		public class LocalizationModel
+		{
+			private readonly IStringLocalizer localizer;
+
+
+			public LocalizationModel(IStringLocalizer localizer)
+			{
+				this.localizer = localizer;
+			}
+
+
+			public string ConnectionMenuHeader => localizer[nameof(ConnectionMenuHeader)];
+
+			public string CloseConnectionMenuHeader => localizer[nameof(CloseConnectionMenuHeader)];
+
+			public string OpenNewConnectionMenuHeader => localizer[nameof(OpenNewConnectionMenuHeader)];
 		}
 	}
 }

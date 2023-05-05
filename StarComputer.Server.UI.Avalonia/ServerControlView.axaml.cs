@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using StarComputer.ApplicationUtils.Localization;
 using System;
 
 namespace StarComputer.Server.UI.Avalonia
@@ -19,10 +20,15 @@ namespace StarComputer.Server.UI.Avalonia
 				Initialized += OnInitialized;
 			else
 			{
-				clientsBox.Items = new[]
+				DataContext = new
 				{
-					new ServerControlViewModel.ServerClientUIDTO("Dummy", "128.0.1.3:3412"),
-					new ServerControlViewModel.ServerClientUIDTO("Dummy2", "128.2.4.3:3412")
+					Localization = new ServerControlViewModel.LocalizationModel(DesignLocalizer.Instance),
+					IsListening = true,
+					Clients = new[]
+					{
+						new ServerControlViewModel.ServerClientUIDTO("Dummy", "128.0.1.3:3412"),
+						new ServerControlViewModel.ServerClientUIDTO("Dummy2", "128.2.4.3:3412")
+					}
 				};
 			}
 		}

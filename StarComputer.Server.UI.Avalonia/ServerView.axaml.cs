@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using StarComputer.ApplicationUtils.Localization;
 using System;
 
 namespace StarComputer.Server.UI.Avalonia
@@ -11,6 +12,10 @@ namespace StarComputer.Server.UI.Avalonia
 			InitializeComponent();
 			if (Design.IsDesignMode == false)
 				Initialized += OnInitialized;
+			else
+			{
+				DataContext = new { Localization = new ServerViewModel.LocalizationModel(DesignLocalizer.Instance) };
+			}
 		}
 
 

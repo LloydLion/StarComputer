@@ -5,6 +5,7 @@ using StarComputer.Common.Abstractions.Plugins.Resources;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using System.Reflection.Metadata;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace StarComputer.UI.Avalonia
 {
@@ -53,7 +54,19 @@ namespace StarComputer.UI.Avalonia
 			if (pageConstructor is null)
 			{
 				using var reader = new StreamReader(resources.ReadResource(resource));
-				var documentBuilder = new StringBuilder(await reader.ReadToEndAsync());
+				var raw = await reader.ReadToEndAsync();
+				var documentBuilder = new StringBuilder(raw);
+
+				if (constructionBag.Localizer is not null)
+				{
+					var localizationMatches = Regex.Matches(raw, "{{\\$(\\w*)}}");
+					foreach (var match in localizationMatches.AsEnumerable())
+					{
+						var key = match.Groups[1];
+						var value = constructionBag.Localizer[key.Value];
+						documentBuilder.Replace(match.Value, value);
+					}
+				}
 
 				foreach (var argument in constructionBag.ConstructionArguments)
 					documentBuilder.Replace($"{{{{{argument.Key}}}}}", argument.Value);

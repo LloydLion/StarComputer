@@ -1,17 +1,15 @@
 ﻿using Avalonia.Controls;
-using Avalonia.LogicalTree;
-using System;
 
 namespace StarComputer.Client.UI.Avalonia
 {
-	public static class ClientConnectionMenuView
+	public class ClientConnectionMenuView
 	{
-		public static void Attach(MenuItem item, ClientConnectionMenuViewModel context)
+		public void Attach(MenuItem item, ClientConnectionMenuViewModel context)
 		{
-			item.Header = "Connection";
+			item.Header = context.Localization.ConnectionMenuHeader;
 
-			var closeConnectionMenuItem = new MenuItem() { Header = "Close connection" };
-			var openNewConnectionMenuItem = new MenuItem() { Header = "Open new connection" };
+			var closeConnectionMenuItem = new MenuItem() { Header = context.Localization.CloseConnectionMenuHeader };
+			var openNewConnectionMenuItem = new MenuItem() { Header = context.Localization.OpenNewConnectionMenuHeader };
 
 			item.Items = new[]
 			{

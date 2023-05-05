@@ -65,10 +65,10 @@
 								<TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="14"/>
 								<FlyoutBase.AttachedFlyout>
 									<MenuFlyout>
-										<MenuItem Header="Close" Command="{Binding CloseCommand}" CommandParameter="{Binding}"/>
-										<MenuItem Header="Open in right sidebar" Command="{Binding OpenInRightSidebarCommand}" CommandParameter="{Binding}"/>
-										<MenuItem Header="Open in left sidebar" Command="{Binding OpenInLeftSidebarCommand}" CommandParameter="{Binding}"/>
-										<MenuItem Header="Combine" Command="{Binding CombineCommand}" CommandParameter="{Binding}"/>
+										<MenuItem Header="{Binding Localization.CloseMenuItemHeader}" Command="{Binding CloseCommand}" CommandParameter="{Binding}"/>
+										<MenuItem Header="{Binding Localization.OpenInRightSidebarMenuItemHeader}" Command="{Binding OpenInRightSidebarCommand}" CommandParameter="{Binding}"/>
+										<MenuItem Header="{Binding Localization.OpenInLeftSidebarMenuItemHeader}" Command="{Binding OpenInLeftSidebarCommand}" CommandParameter="{Binding}"/>
+										<MenuItem Header="{Binding Localization.CombineMenuItemHeader}" Command="{Binding CombineCommand}" CommandParameter="{Binding}"/>
 									</MenuFlyout>
 								</FlyoutBase.AttachedFlyout>
 							</Panel>

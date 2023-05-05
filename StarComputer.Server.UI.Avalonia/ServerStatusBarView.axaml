@@ -15,8 +15,8 @@
 
 		<StackPanel Orientation="Horizontal" Grid.Column="0" Margin="10 0 0 0" Spacing="5">
 			<Ellipse x:Name="blub" Fill="Blue" Height="15" Width="15" VerticalAlignment="Center"/>
-			<Label IsVisible="{Binding IsListening}" Content="{Binding Configuration.Interface, TargetNullValue=NORENDER, StringFormat=Listening on {0}}" Foreground="Black" VerticalAlignment="Center"/>
-			<Label IsVisible="{Binding IsNotListening}" Content="Server closed" Foreground="Black" VerticalAlignment="Center"/>
+			<Label IsVisible="{Binding IsListening}" x:Name="listeningLabel" Foreground="Black" VerticalAlignment="Center"/>
+			<Label IsVisible="{Binding IsNotListening}" Content="{Binding Localization.ServerClosedLabel}" Foreground="Black" VerticalAlignment="Center"/>
 		</StackPanel>
 	</Grid>
 </UserControl>

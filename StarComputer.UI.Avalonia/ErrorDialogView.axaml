@@ -5,7 +5,7 @@
         mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="350"
 		Height="350" Width="550" CanResize="False"
         x:Class="StarComputer.UI.Avalonia.ErrorDialogView"
-        Title="ErrorDialogViewModel">
+        Title="{Binding WindowTitle}">
 	<Grid>
 		<Grid.RowDefinitions>
 			<RowDefinition Height="250"/>
@@ -13,14 +13,14 @@
 		</Grid.RowDefinitions>
 		
 		<StackPanel Grid.Row="0" Margin="20">
-			<Label Content="Operation finished with fatal error!" FontWeight="Black" FontSize="20"/>
-			<Label Content="Error message:" Foreground="Red" FontWeight="Black" FontSize="15"/>
+			<Label Content="{Binding HeaderLabel}" FontWeight="Black" FontSize="20"/>
+			<Label Content="{Binding ErrorMessageLabel}" Foreground="Red" FontWeight="Black" FontSize="15"/>
 			<TextBlock x:Name="errorMessageBlock" TextWrapping="Wrap" Foreground="Red" MaxLines="9"/>
 		</StackPanel>
 		
 		<StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Bottom" Spacing="20" Margin="20">
-			<Button x:Name="copyButton" Content="Copy to clipboard"/>
-			<Button x:Name="closeButton" Content="Continue"/>
+			<Button x:Name="copyButton" Content="{Binding CopyToClipboardButton}"/>
+			<Button x:Name="closeButton" Content="{Binding ContinueButton}"/>
 		</StackPanel>
 	</Grid>
 </Window>

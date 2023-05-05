@@ -1,4 +1,5 @@
 ﻿using DynamicData;
+using Microsoft.Extensions.Localization;
 using StarComputer.Common.Abstractions.Plugins;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -26,7 +27,7 @@ namespace StarComputer.UI.Avalonia
 		public event PropertyChangingEventHandler? PropertyChanging;
 
 
-		public BrowserViewModel(IBrowserCollection browsers, IPluginStore plugins)
+		public BrowserViewModel(IBrowserCollection browsers, IPluginStore plugins, IStringLocalizer<BrowserView> localizer)
 		{
 			this.browsers = browsers;
 			this.plugins = plugins;
@@ -68,6 +69,8 @@ namespace StarComputer.UI.Avalonia
 			});
 
 			openCommand = new DelegateCommand<IPlugin>(Open);
+
+			Localization = new LocalizationModel(localizer);
 		}
 
 
@@ -86,6 +89,8 @@ namespace StarComputer.UI.Avalonia
 		public IPlugin? RightSidebarActivePlugin { get => rightSidebarActivePlugin; set => RaiseAndSetIfChanged(ref rightSidebarActivePlugin, value); }
 
 		public IPlugin? CombinationChoose { get => combinationChoose; set => RaiseAndSetIfChanged(ref combinationChoose, value); }
+
+		public LocalizationModel Localization { get; }
 
 
 		public void OpenTab(BrowserTab tab)
@@ -244,6 +249,8 @@ namespace StarComputer.UI.Avalonia
 
 			public ICommand OpenInLeftSidebarCommand => owner.openInLeftSidebarCommand;
 
+			public LocalizationModel Localization => owner.Localization;
+
 
 			public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -293,6 +300,26 @@ namespace StarComputer.UI.Avalonia
 			public bool CanExecute(object? parameter) => true;
 
 			public void Execute(object? parameter) => action(parameter as TInput ?? throw new ArgumentException($"Parameter should be {typeof(TInput)} type", nameof(parameter)));
+		}
+
+		public class LocalizationModel
+		{
+			private readonly IStringLocalizer localizer;
+
+
+			public LocalizationModel(IStringLocalizer localizer)
+			{
+				this.localizer = localizer;
+			}
+
+
+			public string CloseMenuItemHeader => localizer[nameof(CloseMenuItemHeader)];
+
+			public string OpenInRightSidebarMenuItemHeader => localizer[nameof(OpenInRightSidebarMenuItemHeader)];
+
+			public string OpenInLeftSidebarMenuItemHeader => localizer[nameof(OpenInLeftSidebarMenuItemHeader)];
+
+			public string CombineMenuItemHeader => localizer[nameof(CombineMenuItemHeader)];
 		}
 	}
 }

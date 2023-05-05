@@ -27,6 +27,7 @@ using System.Threading.Tasks;
 using StarComputer.Common.Plugins.Persistence;
 using StarComputer.Common.Abstractions.Plugins.Persistence;
 using StarComputer.Common.Abstractions;
+using StarComputer.ApplicationUtils.Localization;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -100,6 +101,8 @@ namespace StarComputer.Client.UI.Avalonia
 				.AddSingleton<IPluginStore, PluginStore>()
 
 				.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddConsole().AddDebug())
+
+				.AddLocalization(s => { }, new[] { "StarComputer.UI.Avalonia" })
 
 				.BuildServiceProvider();
 

@@ -1,10 +1,11 @@
-﻿using StarComputer.UI.Avalonia;
+﻿using Microsoft.Extensions.Localization;
+using StarComputer.UI.Avalonia;
 
 namespace StarComputer.Server.UI.Avalonia
 {
 	public class ServerViewModel : ViewModelBase
 	{
-		public ServerViewModel(BrowserViewModel browser, ServerControlViewModel serverControl, ServerStatusBarViewModel statusBar)
+		public ServerViewModel(BrowserViewModel browser, ServerControlViewModel serverControl, ServerStatusBarViewModel statusBar, IStringLocalizer<ServerView> localizer)
 		{
 			Browser = browser;
 			ServerControl = serverControl;
@@ -17,6 +18,8 @@ namespace StarComputer.Server.UI.Avalonia
 					RaisePropertyChanged(nameof(IsListening));
 				}
 			};
+
+			Localization = new LocalizationModel(localizer);
 		}
 
 
@@ -28,5 +31,24 @@ namespace StarComputer.Server.UI.Avalonia
 		public ServerControlViewModel ServerControl { get; }
 
 		public ServerStatusBarViewModel StatusBar { get; }
+
+		public LocalizationModel Localization { get; }
+
+
+		public class LocalizationModel
+		{
+			private readonly IStringLocalizer localizer;
+
+
+			public LocalizationModel(IStringLocalizer localizer)
+			{
+				this.localizer = localizer;
+			}
+
+
+			public string WindowMenuItemHeader => localizer[nameof(WindowMenuItemHeader)];
+
+			public string OpenServerStatusControlMenuItemHeader => localizer[nameof(OpenServerStatusControlMenuItemHeader)];
+		}
 	}
 }

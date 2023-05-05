@@ -4,6 +4,7 @@ using StarComputer.UI.Avalonia;
 using System.Net;
 using System.Threading.Tasks;
 using System;
+using Microsoft.Extensions.Localization;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -19,7 +20,7 @@ namespace StarComputer.Client.UI.Avalonia
 		private bool canContinue;
 
 
-		public ConnectionDialogViewModel(IOptions<Options> options)
+		public ConnectionDialogViewModel(IOptions<Options> options, IStringLocalizer<ConnectionDialogView> localizer)
 		{
 			PropertyChanged += (sender, e) =>
 			{
@@ -44,8 +45,12 @@ namespace StarComputer.Client.UI.Avalonia
 				Login = initialData.Login;
 				ServerPassword = initialData.ServerPassword;
 			}
+
+			Localization = new LocalizationModel(localizer);
 		}
 
+
+		public LocalizationModel Localization { get; }
 
 		public string? ConnectionEndPoint { get => connectionEndPoint; set => RaiseAndSetIfChanged(ref connectionEndPoint, value); }
 
@@ -75,6 +80,28 @@ namespace StarComputer.Client.UI.Avalonia
 			public bool IsConnectionLoginLocked { get; set; }
 
 			public ConnectionConfiguration? InitialConnectionInformation { get; set; }
+		}
+
+		public class LocalizationModel
+		{
+			private readonly IStringLocalizer localizer;
+
+
+			public LocalizationModel(IStringLocalizer localizer)
+			{
+				this.localizer = localizer;
+			}
+
+
+			public string Title => localizer[nameof(Title)];
+
+			public string EndpointTextboxWatermark => localizer[nameof(EndpointTextboxWatermark)];
+
+			public string ServerPasswordTextboxWatermark => localizer[nameof(ServerPasswordTextboxWatermark)];
+
+			public string LoginTextboxWatermark => localizer[nameof(LoginTextboxWatermark)];
+
+			public string ConnectButton => localizer[nameof(ConnectButton)];
 		}
 	}
 }

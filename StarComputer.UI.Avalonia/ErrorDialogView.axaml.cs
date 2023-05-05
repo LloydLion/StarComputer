@@ -1,13 +1,14 @@
 using Avalonia;
 using Avalonia.Controls;
-using ReactiveUI;
-using System.Reactive;
-using System.Reactive.Linq;
+using Microsoft.Extensions.Localization;
 
 namespace StarComputer.UI.Avalonia
 {
 	public partial class ErrorDialogView : Window
 	{
+		private static LocalizationModel? localization = null;
+
+
 		private readonly string errorMessage;
 
 
@@ -47,7 +48,38 @@ namespace StarComputer.UI.Avalonia
 
 		public static async ValueTask ShowAsync(string errorMessage, Window owner)
 		{
-			await new ErrorDialogView(errorMessage).ShowDialog(owner);
+			if (localization is null)
+				throw new InvalidOperationException("Localize error dialog view before use");
+
+			await new ErrorDialogView(errorMessage) { DataContext = localization }.ShowDialog(owner);
+		}
+
+		public static void LocalizeWith(IStringLocalizer<ErrorDialogView> localizer)
+		{
+			localization = new LocalizationModel(localizer);
+		}
+
+
+		private class LocalizationModel
+		{
+			private IStringLocalizer<ErrorDialogView> localizer;
+
+
+			public LocalizationModel(IStringLocalizer<ErrorDialogView> localizer)
+			{
+				this.localizer = localizer;
+			}
+
+
+			public string WindowTitle => localizer[nameof(WindowTitle)];
+
+			public string HeaderLabel => localizer[nameof(HeaderLabel)];
+
+			public string ErrorMessageLabel => localizer[nameof(ErrorMessageLabel)];
+
+			public string CopyToClipboardButton => localizer[nameof(CopyToClipboardButton)];
+
+			public string ContinueButton => localizer[nameof(ContinueButton)];
 		}
 	}
 }

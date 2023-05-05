@@ -8,7 +8,7 @@
 		<DockPanel>
 			<Button x:Name="closeMenuButton" Content="X" DockPanel.Dock="Top" Background="Beige" BorderThickness="0" HorizontalAlignment="Right"/>
 			<StackPanel Margin="30" Spacing="30">
-				<Button x:Name="listenButton" Classes="priority" Content="Start listening" IsEnabled="{Binding CanStartListen}"/>
+				<Button x:Name="listenButton" Classes="priority" Content="{Binding Localization.StartListeningButton}" IsEnabled="{Binding CanStartListen}"/>
 				<ListBox SelectionMode="Single" x:Name="clientsBox" IsEnabled="{Binding IsListening}" Items="{Binding Clients}" MinWidth="200" MaxWidth="300" HorizontalAlignment="Left">
 					<ListBox.ItemTemplate>
 						<DataTemplate>

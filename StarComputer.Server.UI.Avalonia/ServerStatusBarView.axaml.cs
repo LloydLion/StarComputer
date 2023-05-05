@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Media;
+using StarComputer.ApplicationUtils.Localization;
 using System;
 
 namespace StarComputer.Server.UI.Avalonia
@@ -14,6 +15,14 @@ namespace StarComputer.Server.UI.Avalonia
 			InitializeComponent();
 			if (Design.IsDesignMode == false)
 				Initialized += OnInitialized;
+			else
+			{
+				DataContext = new
+				{
+					Localization = new ServerStatusBarViewModel.LocalizationModel(DesignLocalizer.Instance),
+					IsNotListening = true
+				};
+			}
 		}
 
 
@@ -25,9 +34,10 @@ namespace StarComputer.Server.UI.Avalonia
 				if (e.PropertyName == nameof(ServerStatusBarViewModel.IsListening))
 				{
 					blub.Fill = new SolidColorBrush(Color.Parse(Context.IsListening ? "LightGreen" : "Blue"));
-
 				}
 			};
+
+			listeningLabel.Content = string.Format(Context.Localization.ServerListeningOn, Context.Configuration.Interface);
 		}
 	}
 }

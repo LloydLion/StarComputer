@@ -19,7 +19,7 @@ namespace StarComputer.Client.UI.Avalonia
 		private void OnInitialized(object? sender, EventArgs e)
 		{
 			var connectionMenu = new MenuItem();
-			ClientConnectionMenuView.Attach(connectionMenu, Context.ConnectionMenu);
+			new ClientConnectionMenuView().Attach(connectionMenu, Context.ConnectionMenu);
 
 			menu.Items = new MenuItem[]
 			{

@@ -8,8 +8,8 @@
 			 x:Class="StarComputer.Server.UI.Avalonia.ServerView">
 	<DockPanel>
 		<Menu DockPanel.Dock="Top">
-			<MenuItem Header="Window">
-				<MenuItem Header="Server status control" x:Name="serverStatusControlMenuItem" IsEnabled="False"/>
+			<MenuItem Header="{Binding Localization.WindowMenuItemHeader}">
+				<MenuItem Header="{Binding Localization.OpenServerStatusControlMenuItemHeader}" x:Name="serverStatusControlMenuItem" IsEnabled="False"/>
 			</MenuItem>
 		</Menu>
 		

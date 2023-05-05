@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.Console\StarComputer.Common.Abstractions.Plugins.UI.Console.csproj" />
+    <ProjectReference Include="..\StarComputer.ApplicationUtils\StarComputer.ApplicationUtils.csproj" />
     <ProjectReference Include="..\StarComputer.Common.Abstractions.Plugins.UI.HTML\StarComputer.Common.Abstractions.Plugins.UI.HTML.csproj" />
     <ProjectReference Include="..\StarComputer.Common\StarComputer.Common.csproj" />
   </ItemGroup>
