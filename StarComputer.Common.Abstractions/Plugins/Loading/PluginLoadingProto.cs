@@ -3,7 +3,7 @@
 	public delegate IPlugin PluginInstantiator(IServiceProvider services);
 
 
-	public record struct PluginLoadingProto(PluginDomain Domain, PluginInstantiator Instantiator)
+	public record struct PluginLoadingProto(PluginDomain Domain, Type PluginType, PluginInstantiator Instantiator)
 	{
 		public IPlugin InstantiatePlugin(IServiceProvider services) => Instantiator(services);
 	}

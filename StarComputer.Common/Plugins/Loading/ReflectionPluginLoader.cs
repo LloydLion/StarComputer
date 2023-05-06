@@ -59,7 +59,7 @@ namespace StarComputer.Common.Plugins.Loading
 							{
 								var domain = pluginType.GetCustomAttribute<PluginAttribute>()!.Domain;
 								var typeCache = pluginType;
-								plugins.Add(new(domain, (services) =>
+								plugins.Add(new(domain, pluginType, (services) =>
 								{
 									return ResolveInstance<IPlugin>(services, typeCache);
 								}));

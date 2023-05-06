@@ -9,9 +9,9 @@ using StarComputer.Server.Abstractions;
 using System.Diagnostics.CodeAnalysis;
 using StarComputer.Common.Abstractions.Plugins.Persistence;
 
-namespace ChatPlugin
+namespace QuickChatPlugin
 {
-	public partial class ChatPlugin : PluginBase
+	public partial class QuickChatPlugin : PluginBase
 	{
 		private readonly ClientUIContext clientUI;
 
@@ -23,7 +23,7 @@ namespace ChatPlugin
 				var responce = await SendMessageAndRequestResponse<ClientChatInitializationModel>(clientProtocolEnviroment.Client.GetServerAgent(), new ClientChatInitializationRequest());
 				var messages = responce.Body.Messages;
 
-				await ui.LoadHTMLPageAsync(new PluginResource("client.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", messages.Select(s => new MessageUIDTO(s)), useJson: true));
+				await ui.LoadHTMLPageAsync(new PluginResource("client.html"), new PageConstructionBag(localizer).AddConstructionArgument("InitialMessages", messages.Select(s => new MessageUIDTO(s)), useJson: true));
 				ui.SetJSPluginContext(clientUI);
 				ui.ExecuteJavaScriptFunction("initialize");
 			};
@@ -51,10 +51,10 @@ namespace ChatPlugin
 
 		private class ClientUIContext : CommonUIContext
 		{
-			private readonly ChatPlugin owner;
+			private readonly QuickChatPlugin owner;
 
 
-			public ClientUIContext(ChatPlugin owner)
+			public ClientUIContext(QuickChatPlugin owner)
 			{
 				this.owner = owner;
 			}

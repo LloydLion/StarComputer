@@ -28,6 +28,7 @@ using StarComputer.Common.Plugins.Persistence;
 using StarComputer.Common.Abstractions.Plugins.Persistence;
 using StarComputer.Common.Abstractions;
 using StarComputer.ApplicationUtils.Localization;
+using Microsoft.Extensions.Localization;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -102,7 +103,7 @@ namespace StarComputer.Client.UI.Avalonia
 
 				.AddLogging(builder => builder.SetMinimumLevel(config.GetValue<LogLevel>("Logging:MinLevel")).AddConsole().AddDebug())
 
-				.AddLocalization(s => { }, new[] { "StarComputer.UI.Avalonia" })
+				.AddLocalization(options => { options.ResourcesPath = "Translations"; }, new[] { "StarComputer.UI.Avalonia" })
 
 				.BuildServiceProvider();
 
@@ -137,10 +138,12 @@ namespace StarComputer.Client.UI.Avalonia
 			var pluginLoader = services.GetRequiredService<IPluginLoader>();
 			var bodyTypeResolverBuilder = new BodyTypeResolverBuilder();
 			var pluginPersistenceServiceProvider = services.GetRequiredService<IPluginPersistenceServiceProvider>();
+			var localizationFactory = services.GetRequiredService<IStringLocalizerFactory>();
 
 			var pluginInitializer = new PluginInitializer(bodyTypeResolverBuilder, targetSynchronizationContext);
 			pluginInitializer.SetServices((ps, proto) =>
 			{
+				ps.Register(localizationFactory.Create(proto.PluginType));
 				ps.Register<IHTMLUIContext>(uiManager.CreateContext(proto));
 				ps.Register(pluginPersistenceServiceProvider.Provide(proto.Domain));
 

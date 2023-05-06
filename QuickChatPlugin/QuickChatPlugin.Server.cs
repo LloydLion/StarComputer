@@ -9,9 +9,9 @@ using StarComputer.Server.Abstractions;
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace ChatPlugin
+namespace QuickChatPlugin
 {
-	public partial class ChatPlugin : PluginBase
+	public partial class QuickChatPlugin : PluginBase
 	{
 		private const string MessagesPersistenceAddress = "messages/";
 		private const string FilesPersistenceAddress = "files/";
@@ -28,7 +28,7 @@ namespace ChatPlugin
 		{
 			var broadcast = persistence.ReadObject<MessageCollection>(BroadcastMessagesPersistenceAddress);
 
-			await ui.LoadHTMLPageAsync(new("server.html"), new PageConstructionBag().AddConstructionArgument("InitialMessages", broadcast.Select(s => new MessageUIDTO(s)), useJson: true));
+			await ui.LoadHTMLPageAsync(new("server.html"), new PageConstructionBag(localizer).AddConstructionArgument("InitialMessages", broadcast.Select(s => new MessageUIDTO(s)), useJson: true));
 			ui.SetJSPluginContext(serverUI);
 			ui.ExecuteJavaScriptFunction("initialize");
 		}
@@ -215,10 +215,10 @@ namespace ChatPlugin
 
 		private class ServerUIContext : CommonUIContext
 		{
-			private readonly ChatPlugin owner;
+			private readonly QuickChatPlugin owner;
 
 
-			public ServerUIContext(ChatPlugin owner)
+			public ServerUIContext(QuickChatPlugin owner)
 			{
 				this.owner = owner;
 			}

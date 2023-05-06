@@ -1,21 +1,24 @@
-﻿using StarComputer.Common.Abstractions.Plugins;
+﻿using Microsoft.Extensions.Localization;
+using StarComputer.Common.Abstractions.Plugins;
 using StarComputer.Common.Abstractions.Plugins.Persistence;
 using StarComputer.Common.Abstractions.Plugins.UI.HTML;
 using StarComputer.PluginDevelopmentKit;
 
-namespace ChatPlugin
+namespace QuickChatPlugin
 {
-	[Plugin("Chat")]
-	public partial class ChatPlugin : PluginBase
+	[Plugin("QuickChat")]
+	public partial class QuickChatPlugin : PluginBase
 	{
 		private readonly IHTMLUIContext ui;
 		private readonly IPluginPersistenceService persistence;
+		private readonly IStringLocalizer localizer;
 
 
-		public ChatPlugin(IProtocolEnvironment environment, IHTMLUIContext ui, IPluginPersistenceService persistence) : base(environment)
+		public QuickChatPlugin(IProtocolEnvironment environment, IHTMLUIContext ui, IPluginPersistenceService persistence, IStringLocalizer localizer) : base(environment)
 		{
 			this.ui = ui;
 			this.persistence = persistence;
+			this.localizer = localizer;
 			serverUI = new ServerUIContext(this);
 			clientUI = new ClientUIContext(this);
 		}

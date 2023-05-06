@@ -45,7 +45,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.UI.Avalonia", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.Server.UI.Avalonia", "StarComputer.Server.UI.Avalonia\StarComputer.Server.UI.Avalonia.csproj", "{705E11F2-E2DA-4209-8CE8-5DDD682A411C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ChatPlugin", "ChatPlugin\ChatPlugin.csproj", "{A731AD99-2947-4DE9-B371-34F130A686E3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuickChatPlugin", "QuickChatPlugin\QuickChatPlugin.csproj", "{A731AD99-2947-4DE9-B371-34F130A686E3}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.ApplicationUtils", "StarComputer.ApplicationUtils\StarComputer.ApplicationUtils.csproj", "{8693C888-32D6-4C72-BF10-AF24B7EBE66E}"
 EndProject

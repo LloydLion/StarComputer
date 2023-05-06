@@ -4,14 +4,14 @@
 	</head>
 
 	<body>
-		<h1>Chat</h1>
+		<h1>QuickChat</h1>
 		<ul id="messages">
 		</ul>
 		<br/>
 		<br/>
 		<input type="input" id="textBox"/>
-		<button onClick="sendMessage()">Send message</button>
-		<button onClick="uploadFile()">Upload</button>
+		<button onClick="sendMessage()">{{$SendMessageButtonText}}</button>
+		<button onClick="uploadFile()">{{$UploadButtonText}}</button>
 
 		<script type="text/javascript">
 			const initialMessages = {{InitialMessages}};
