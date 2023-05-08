@@ -31,6 +31,8 @@ namespace StarComputer.Common.Abstractions
 
 		public abstract object? Deserialize(string value, Type objectType);
 
+		public abstract bool SubCompare(object mediateObject, object originalObject);
+
 		public abstract object? SubDeserialize(object? mediateObject, Type objectType);
 
 		public TObject Deserialize<TObject>(string value) where TObject : notnull
@@ -58,6 +60,13 @@ namespace StarComputer.Common.Abstractions
 			public override string Serialize(object? value)
 			{
 				return JsonConvert.SerializeObject(value);
+			}
+
+			public override bool SubCompare(object mediateObject, object originalObject)
+			{
+				var oo = JToken.FromObject(originalObject);
+				var mo = (JToken)mediateObject;
+				return JToken.DeepEquals(mo, oo);
 			}
 
 			public override object? SubDeserialize(object? mediateObject, Type objectType)

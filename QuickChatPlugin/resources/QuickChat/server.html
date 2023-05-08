@@ -103,6 +103,8 @@
 				const pages = document.getElementById("pages");
 				const button = document.createElement("button");
 
+				button.id = "openPage_" + page;
+
 				button.append(page);
 				button.addEventListener("click", function() { switchPage(page); });
 
@@ -167,6 +169,12 @@
 				};
 
 				input.click();
+			}
+
+			function removePage(page)
+			{
+				messages[page] = undefined;
+				document.getElementById("openPage_" + page).remove();
 			}
 		</script>
 	</body>

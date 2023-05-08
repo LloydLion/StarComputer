@@ -72,7 +72,7 @@ namespace StarComputer.Server
 
 			public void OnClientDisconnected(object? sender, ServerClientStatusChangedEventArgs e)
 			{
-				clientConnectHandler?.Invoke(owner, new(new(e.Client.ConnectionInformation, new PluginRemoteAgent(e.Client.ProtocolAgent, targetPluginDomain))));
+				clientDisconnectHandler?.Invoke(owner, new(new(e.Client.ConnectionInformation, new PluginRemoteAgent(e.Client.ProtocolAgent, targetPluginDomain))));
 			}
 
 			private void NotifyChanged()

@@ -1,4 +1,5 @@
 ﻿using StarComputer.Common.Abstractions.Plugins;
+using StarComputer.Common.Abstractions.Protocol;
 
 namespace StarComputer.Server.Abstractions
 {
@@ -26,6 +27,6 @@ namespace StarComputer.Server.Abstractions
 
 		public ServerConfiguration GetConfiguration();
 
-		public void MainLoop(IPluginStore plugins);
+		public void MainLoop(JoinKeyCollection joinKeys);
 	}
 }

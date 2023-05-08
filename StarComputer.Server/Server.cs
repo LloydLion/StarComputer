@@ -130,7 +130,7 @@ namespace StarComputer.Server
 			return new ValueTask(tcs.Task);
 		}
 
-		public void MainLoop(IPluginStore plugins)
+		public void MainLoop(JoinKeyCollection joinKeys)
 		{
 		restart:
 			listenRequestEvent.WaitOne();
@@ -153,7 +153,7 @@ namespace StarComputer.Server
 
 			while (IsListening)
 			{
-				var waitResult = mainThreadDispatcher.WaitHandles(handlers);
+				var waitResult = mainThreadDispatcher.WaitHandles(handlers, 3000);
 
 				CheckClientsTimeout();
 
@@ -211,7 +211,7 @@ namespace StarComputer.Server
 					httpContextAsyncResult = listener.BeginGetContext(null, null);
 					handlers[1] = httpContextAsyncResult.AsyncWaitHandle;
 
-					ProcessHttpMessageAsync(context);
+					ProcessHttpMessageAsync(context, joinKeys);
 				}
 			}
 		}
@@ -233,7 +233,7 @@ namespace StarComputer.Server
 					DisconnectClient(client);
 		}
 
-		private async void ProcessHttpMessageAsync(HttpListenerContext context)
+		private async void ProcessHttpMessageAsync(HttpListenerContext context, JoinKeyCollection joinKeys)
 		{
 			try
 			{
@@ -244,7 +244,7 @@ namespace StarComputer.Server
 				switch (type)
 				{
 					case ServerRequestType.Connect:
-						await ProcessClientConnectAsync(context);
+						await ProcessClientConnectAsync(context, joinKeys);
 						break;
 					case ServerRequestType.Heartbeat:
 						ProcessClientHeartbeat(context);
@@ -274,7 +274,7 @@ namespace StarComputer.Server
 			}
 		}
 
-		private async ValueTask ProcessClientConnectAsync(HttpListenerContext context)
+		private async ValueTask ProcessClientConnectAsync(HttpListenerContext context, JoinKeyCollection joinKeys)
 		{
 			var headers = context.Request.Headers;
 			var password = headers[ConnectionPasswordHeader];
@@ -290,6 +290,19 @@ namespace StarComputer.Server
 			if (addressRaw is null)
 				throw new BadRequestException("No client callback address in connection request");
 			var address = new Uri(addressRaw);
+
+			var buffer = new byte[context.Request.ContentLength64];
+			await context.Request.InputStream.ReadAsync(buffer);
+			var recivedJoinKeysRaw = context.Request.ContentEncoding.GetString(buffer);
+			var recivedJoinKeys = SerializationContext.Instance.Deserialize<JoinKeyCollection>(recivedJoinKeysRaw);
+			if (recivedJoinKeys.Count != joinKeys.Count)
+				throw new BadRequestException("Join keys count mismatch");
+
+			foreach (var item in recivedJoinKeys.Join(joinKeys, s => s.Key, s => s.Key, (a, b) => new { OurKey = b.Value, RecivedKey = a.Value, a.Key }))
+			{
+				if (SerializationContext.Instance.SubCompare(item.RecivedKey, item.OurKey) == false)
+					throw new BadRequestException($"Join key mismatch. Key - {item.Key}. Server side value: {SerializationContext.Instance.Serialize(item.OurKey)}");
+			}
 
 			try
 			{

@@ -25,6 +25,6 @@ namespace StarComputer.Client.Abstractions
 
 		public ClientConfiguration GetConfiguration();
 
-		public void MainLoop(IPluginStore plugins);
+		public void MainLoop(JoinKeyCollection joinKeys);
 	}
 }

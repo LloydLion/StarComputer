@@ -75,9 +75,11 @@ namespace StarComputer.UI.Avalonia
 			}
 			else document = pageConstructor.ConstructHTMLPage(resource, constructionBag);
 
-			server.ReplaceFile(new PluginResource("index.html"), document, "text/html");
+			const string indexAddress = "index.html";
+			server.CancelFileReplacement(new PluginResource(indexAddress));
+			server.ReplaceFile(new PluginResource(indexAddress), document, "text/html");
 
-			var address = server.HttpPrefix + "index.html";
+			var address = server.HttpPrefix + indexAddress;
 
 			await browser.NavigateAsync(address, forceReload: true);
 

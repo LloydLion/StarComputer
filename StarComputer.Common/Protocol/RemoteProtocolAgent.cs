@@ -55,7 +55,11 @@ namespace StarComputer.Common.Protocol
 
 					if (result.IsSuccessStatusCode)
 						tcs.SetResult();
-					else tcs.SetException(new Exception($"HTTP exception, server returned status code [{result.StatusCode}]"));
+					else
+					{
+						var content = await result.Content.ReadAsStringAsync();
+						tcs.SetException(new Exception($"HTTP exception, opposite side returned status code [{result.StatusCode}]: {content}"));
+					}
 				}
 				catch (Exception ex)
 				{

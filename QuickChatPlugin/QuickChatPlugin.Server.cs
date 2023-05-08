@@ -117,6 +117,11 @@ namespace QuickChatPlugin
 				VisualizeServerMessage(s, userName);
 			});
 
+			store.SetDisposeCallback(() =>
+			{
+				ui.ExecuteJavaScriptFunction("removePage", userName);
+			});
+
 			store.ReadMessages();
 			client.RegisterService(store, typeof(UserMessageStore));
 		}
@@ -167,11 +172,12 @@ namespace QuickChatPlugin
 			public void Use() => LastUsage = DateTime.Now;
 		}
 
-		private class UserMessageStore
+		private class UserMessageStore : IDisposable
 		{
 			private readonly IPluginPersistenceService persistence;
 			private readonly PersistenceAddress address;
 			private Action<Message>? callback;
+			private Action? disposeCallback;
 
 
 			public UserMessageStore(PluginUser user, IPluginPersistenceService persistence)
@@ -202,6 +208,11 @@ namespace QuickChatPlugin
 					callback?.Invoke(item);
 			}
 
+			public void Dispose()
+			{
+				disposeCallback?.Invoke();
+			}
+
 			public IReadOnlyList<Message> ListMessages() => persistence.ReadObject<MessageCollection>(address);
 
 			public void ReadMessages()
@@ -211,6 +222,8 @@ namespace QuickChatPlugin
 			}
 
 			public void SetAddCallback(Action<Message> callback) => this.callback = callback;
+
+			public void SetDisposeCallback(Action callback) => this.disposeCallback = callback;
 		}
 
 		private class ServerUIContext : CommonUIContext

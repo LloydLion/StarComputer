@@ -28,6 +28,8 @@ using StarComputer.Common.Abstractions;
 using System.Net;
 using StarComputer.ApplicationUtils.Localization;
 using Microsoft.Extensions.Localization;
+using System.Linq;
+using DynamicData;
 
 namespace StarComputer.Server.UI.Avalonia
 {
@@ -162,8 +164,12 @@ namespace StarComputer.Server.UI.Avalonia
 			var server = services.GetRequiredService<IServer>();
 			var plugins = services.GetRequiredService<IPluginStore>();
 
+			var joinKeys = new JoinKeyCollection();
+			var pluginsInforamtion = plugins.Select(s => new { Domain = s.Key, Version = s.Value.Version.ToString() }).ToArray();
+			joinKeys.Add(new JoinKey("plugins", pluginsInforamtion));
+
 			initializationTask.Set();
-			server.MainLoop(plugins);
+			server.MainLoop(joinKeys);
 		}
 
 		private static AppBuilder BuildAvaloniaApp()

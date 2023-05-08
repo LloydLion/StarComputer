@@ -45,7 +45,6 @@ namespace StarComputer.Client
 		private readonly ILogger<Client> logger;
 		private readonly IThreadDispatcher<Action> mainThreadDispatcher;
 		private readonly IBodyTypeResolver bodyTypeResolver;
-		private readonly HttpListener listener;
 		private readonly HttpClient httpClient = new();
 		private readonly string callbackUri;
 
@@ -71,9 +70,7 @@ namespace StarComputer.Client
 			this.mainThreadDispatcher = mainThreadDispatcher;
 			this.bodyTypeResolver = bodyTypeResolver;
 
-			listener = new();
 			callbackUri = options.Value.ConstructClientHttpAddress();
-			listener.Prefixes.Add(callbackUri);
 
 			httpClient.Timeout = StaticInformation.DefaultHttpTimeout;
 		}
@@ -143,28 +140,54 @@ namespace StarComputer.Client
 			return CurrentConnection.ServerAgent;
 		}
 
-		public void MainLoop(IPluginStore plugins)
+		public void MainLoop(JoinKeyCollection joinKeys)
 		{
-			listener.Start();
-
 			while (isTerminating == false)
 			{
-				onClientConnectRequested.WaitOne();
-				if (isTerminating) break;
+				var connectionHandlers = new WaitHandle[] { onClientConnectRequested };
 
-				if (clientConnectTask is null) continue;
+				var connectionWaitResult = mainThreadDispatcher.WaitHandles(connectionHandlers);
 
-				try
+				if (connectionWaitResult == 0)
 				{
-					CurrentConnection = FormConnection(clientConnectTask.Configuration);
-					clientConnectTask.Task.SetResult();
+					if (isTerminating) break;
+
+					if (clientConnectTask is null) continue;
+
+					try
+					{
+						CurrentConnection = FormConnection(clientConnectTask.Configuration, joinKeys);
+						clientConnectTask.Task.SetResult();
+					}
+					catch (Exception ex)
+					{
+						clientConnectTask.Task.SetException(ex);
+						continue;
+					}
+
+					clientConnectTask = null;
 				}
-				catch (Exception ex)
+				else //New task
 				{
-					clientConnectTask.Task.SetException(ex);
+					var flag = true;
+					while (flag)
+					{
+						try
+						{
+							logger.Log(LogLevel.Trace, ExecutingNewTaskID, "Server started to execute new task");
+							flag = mainThreadDispatcher.ExecuteTask();
+						}
+						catch (Exception ex)
+						{
+							logger.Log(LogLevel.Error, FailedToExecuteTaskID, ex, "Failed to execute some task");
+						}
+					}
+
 					continue;
 				}
 
+
+				var listener = CreateListener(createStarted: true);
 
 				var httpContextAsyncResult = listener.BeginGetContext(null, null);
 
@@ -234,9 +257,9 @@ namespace StarComputer.Client
 						ProcessHttpMessageAsync(context);
 					}
 				}
-			}
 
-			listener.Stop();
+				listener.Close();
+			}
 		}
 
 		private bool SendHeartbeat()
@@ -253,6 +276,8 @@ namespace StarComputer.Client
 			message.RequestUri = serverEndpoint;
 
 			int failCounter = 0;
+
+		retry:
 			try
 			{
 				var result = httpClient.Send(message);
@@ -265,14 +290,15 @@ namespace StarComputer.Client
 
 				failCounter++;
 
-				if (failCounter > 10)
+				if (failCounter > 3)
 					return false;
+				goto retry;
 			}
 
 			return true;
 		}
 
-		private Connection FormConnection(ConnectionConfiguration configuration)
+		private Connection FormConnection(ConnectionConfiguration configuration, JoinKeyCollection joinKeys)
 		{
 			var serverEndpoint = new Uri(configuration.ConstructServerHttpAddress());
 
@@ -284,8 +310,14 @@ namespace StarComputer.Client
 			message.Headers.Add(CallbackAddressHeader, callbackUri);
 			message.RequestUri = serverEndpoint;
 
+			var content = SerializationContext.Instance.Serialize(joinKeys);
+
+			message.Content = new StringContent(content);
+
+			using var listener = CreateListener(createStarted: true);
 			var asyncResult = listener.BeginGetContext((result) =>
 			{
+				if (listener.IsListening == false) return; 
 				var context = listener.EndGetContext(result);
 
 				var headers = context.Request.Headers;
@@ -356,6 +388,14 @@ namespace StarComputer.Client
 			await messageHandler.HandleMessageAsync(message, CurrentConnection?.ServerAgent ?? throw new NullReferenceException());
 
 			context.Response.StatusCode = (int)HttpStatusCode.OK;
+		}
+
+		private HttpListener CreateListener(bool createStarted = false)
+		{
+			var listener = new HttpListener();
+			listener.Prefixes.Add(callbackUri);
+			if (createStarted) listener.Start();
+			return listener;
 		}
 
 
