@@ -47,9 +47,6 @@
     <None Update="ConnectionView.axaml">
       <SubType>Designer</SubType>
     </None>
-    <None Update="gugpage.html">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Update="PluginSelectorView.axaml">
       <SubType>Designer</SubType>
     </None>

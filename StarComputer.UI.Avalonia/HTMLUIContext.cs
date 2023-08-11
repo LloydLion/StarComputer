@@ -38,6 +38,7 @@ namespace StarComputer.UI.Avalonia
 		public void Initialize()
 		{
 			server.Start();
+			server.AddGugpage(new("gugpage.html"));
 			LoadEmptyPageAsync().AsTask().Equals(null);
 		}
 

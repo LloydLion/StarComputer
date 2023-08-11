@@ -64,6 +64,12 @@ namespace StarComputer.UI.Avalonia
 			replacements.Add(resource, new(Encoding.UTF8.GetBytes(fileData), contentType, "UTF-8"));
 		}
 
+		public void AddGugpage(PluginResource resource)
+		{
+			var data = "<h1>No HTML data to draw</h1>";
+			ReplaceFile(resource, data, "text/html");
+		}
+
 		public void CancelFileReplacement(PluginResource resource)
 		{
 			replacements.Remove(resource);

@@ -49,6 +49,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QuickChatPlugin", "QuickCha
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarComputer.ApplicationUtils", "StarComputer.ApplicationUtils\StarComputer.ApplicationUtils.csproj", "{8693C888-32D6-4C72-BF10-AF24B7EBE66E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Assets", "Assets", "{1E26A54C-9EFC-43F9-9E5E-09256403F505}"
+	ProjectSection(SolutionItems) = preProject
+		Assets\Logo.ico = Assets\Logo.ico
+		Assets\Logo.png = Assets\Logo.png
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

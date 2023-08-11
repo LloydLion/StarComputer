@@ -5,5 +5,6 @@
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="StarComputer.Server.UI.Avalonia.MainWindow"
         Title="StarComputer server"
+		Icon="/Assets/Logo.png"
         Content="{Binding Content}">
 </Window>

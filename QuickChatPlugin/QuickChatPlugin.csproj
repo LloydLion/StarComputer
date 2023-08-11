@@ -33,8 +33,22 @@
     <Folder Include="Properties\" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+
+  <Target Name="PostBuild_Win_DEBUG" AfterTargets="PostBuildEvent" Condition="'$(Configuration)'=='DEBUG' And '$(OS)' == 'Windows_NT'">
     <Exec Command="mkdir &quot;$(ProjectDir)../build/resources&quot;&#xD;&#xA;xcopy &quot;$(ProjectDir)$(OutDir)resources&quot; &quot;$(ProjectDir)../build/resources&quot; /S /Y /R" />
+  </Target>
+	
+  <Target Name="PostBuild_Unix_DEBUG" AfterTargets="PostBuildEvent" Condition="'$(Configuration)'=='DEBUG' And '$(OS)' == 'Unix'">
+    <Exec Command="mkdir &quot;$(ProjectDir)../build/resources&quot;&#xD;&#xA;cp &quot;$(ProjectDir)$(OutDir)resources&quot; &quot;$(ProjectDir)../build/resources&quot; -ruf" />
+  </Target>
+	
+	
+  <Target Name="PostBuild_Win_RELEASE" AfterTargets="PostBuildEvent" Condition="'$(Configuration)'=='RELEASE' And '$(OS)' == 'Windows_NT'">
+    <Exec Command="mkdir &quot;$(OutDir)../resources&quot;&#xD;&#xA;xcopy &quot;$(OutDir)resources&quot; &quot;$(OutDir)../resources&quot; /S /Y /R" />
+  </Target>
+	
+  <Target Name="PostBuild_Unix_RELEASE" AfterTargets="PostBuildEvent" Condition="'$(Configuration)'=='RELEASE' And '$(OS)' == 'Unix'">
+    <Exec Command="mkdir &quot;$(OutDir)../resources&quot;&#xD;&#xA;cp &quot;$(OutDir)resources&quot; &quot;$(OutDir)../resources&quot; -ruf" />
   </Target>
 
 </Project>

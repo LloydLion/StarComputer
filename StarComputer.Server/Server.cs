@@ -100,6 +100,13 @@ namespace StarComputer.Server
 
 		public ValueTask CloseAsync()
 		{
+			if (IsCanStartListen) //close without opening
+			{
+				IsCanStartListen = false;
+				listenRequestEvent.Set();
+				return ValueTask.CompletedTask;
+			}
+
 			if (IsListening == false)
 				throw new InvalidOperationException("Server is already closed, enable to close server twice");
 
@@ -134,6 +141,11 @@ namespace StarComputer.Server
 		{
 		restart:
 			listenRequestEvent.WaitOne();
+			//If closing without opening
+			if (IsCanStartListen == false)
+			{
+				return;
+			}
 			if (listenRequest is null) goto restart;
 			try
 			{

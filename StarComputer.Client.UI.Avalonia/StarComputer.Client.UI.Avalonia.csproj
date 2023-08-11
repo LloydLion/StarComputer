@@ -7,11 +7,13 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <BaseOutputPath>..\build\Client.UI.Avalonia</BaseOutputPath>
     <Platforms>AnyCPU;x64</Platforms>
+    <ApplicationIcon>../Assets/Logo.ico</ApplicationIcon>
   </PropertyGroup>
+	
   <ItemGroup>
     <None Remove=".gitignore" />
   </ItemGroup>
-
+	
   <ItemGroup>
     <TrimmerRootDescriptor Include="Roots.xml" />
   </ItemGroup>
@@ -35,11 +37,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="config-dev.json">
+	<AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="config-dev.json" Condition="'$(Configuration)'=='DEBUG'">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="xcopy &quot;$(ProjectDir)../Assets&quot; &quot;$(ProjectDir)Assets&quot; /S /Y /R" />
+  </Target>
+  <Target Name="PreBuild" BeforeTargets="PreBuildEvent" Condition="'$(OS)' == 'Unix'">
+    <Exec Command="cp &quot;$(ProjectDir)../Assets&quot; &quot;$(ProjectDir)Assets&quot; -ruf" />
+  </Target>
 </Project>

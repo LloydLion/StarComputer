@@ -1,4 +1,9 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using System;
+using System.Linq;
 
 namespace StarComputer.Client.UI.Avalonia
 {
@@ -15,7 +20,7 @@ namespace StarComputer.Client.UI.Avalonia
 		}
 
 
-		private void OnMainWindowClosed(object? sender, System.EventArgs e)
+		private void OnMainWindowClosed(object? sender, EventArgs e)
 		{
 			Context.Close();
 		}
