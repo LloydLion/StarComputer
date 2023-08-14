@@ -1,4 +1,5 @@
 ﻿using System.Security;
+using StarComputer.Client.Abstractions.Protocol.Bundle;
 using StarComputer.Client.Abstractions.Protocol.Machine;
 using StarComputer.Client.Abstractions.Protocol.User;
 
@@ -8,7 +9,7 @@ public interface IServer
 {
 	public ServerMetadata Metadata { get; }
 
-	public IMachineRegistrationAgent MachineRegistrationAgent { get; }
+	public IMachineRegistrationAgent? MachineRegistrationAgent { get; }
 
 	public Task<MachineSessionToken> IdentifyMachineAsync(MachineIdentificationInfo identificationInfo);
 
@@ -16,29 +17,7 @@ public interface IServer
 
 	public Task<UserAuthToken> LoginAsync(MachineSessionToken machine, string Login, SecureString password);
 
-	//TODO: add persistence management
-	/*
-	 * aka
-	 * IDataAgent GetDataAgent(UserAuthToken userAuth)
-	 * 
-	 * interface IDataAgent:
-	 * - Create
-	 * - Delete
-	 * - Read
-	 * - Update
-	 * 
-	 */
+	public Task<BundleHash> GetBundleHash();
 
-	//TODO: add plugin check and downloading
-	/*
-	 * aka
-	 * PluginVerifyData ListPluginsAsync()
-	 * PluginVerifyData:
-	 * - Id
-	 * - Version
-	 * - Hash
-	 * 
-	 * PluginBundle DownloadPluginsAsync();
-	 * 
-	 */
+	public Task<BundleArchive> DownloadArchive();
 }
